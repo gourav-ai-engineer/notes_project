@@ -31,7 +31,7 @@ Architecture, trade-offs and design tokens: [`docs/ARCHITECTURE.md`](docs/ARCHIT
 
 ## Setup
 
-**Prerequisites:** Node.js 20+ (developed on Node 24) and npm.
+**Prerequisites:** Node.js 22.9+ (developed on Node 24; the dev server uses `--env-file-if-exists`) and npm.
 
 ```bash
 npm install
