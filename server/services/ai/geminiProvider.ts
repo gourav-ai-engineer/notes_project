@@ -2,8 +2,16 @@
 import { ApiError, GoogleGenAI } from "@google/genai";
 import { ProviderError, type AiProvider, type ProviderRequest } from "./types.ts";
 
-export function createGeminiProvider(apiKey: string, model: string): AiProvider {
-  const client = new GoogleGenAI({ apiKey });
+export interface GeminiOptions {
+  /** Override the API origin. Used by tests to point the real SDK at a local mock server. */
+  baseUrl?: string;
+}
+
+export function createGeminiProvider(apiKey: string, model: string, options: GeminiOptions = {}): AiProvider {
+  const client = new GoogleGenAI({
+    apiKey,
+    ...(options.baseUrl ? { httpOptions: { baseUrl: options.baseUrl } } : {}),
+  });
 
   return {
     async generate({ systemInstruction, prompt, jsonSchema, signal }: ProviderRequest): Promise<string> {
