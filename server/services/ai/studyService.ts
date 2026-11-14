@@ -26,10 +26,9 @@ export interface GenerateOptions {
   logger: Logger;
 }
 
-const { $schema: _ignored, ...jsonSchema } = z.toJSONSchema(generatedContentSchema, { io: "input" }) as Record<
-  string,
-  unknown
->;
+const fullSchema = z.toJSONSchema(generatedContentSchema, { io: "input" }) as Record<string, unknown>;
+delete fullSchema.$schema; // not part of what the provider accepts
+const jsonSchema = fullSchema;
 
 async function callProvider(opts: GenerateOptions, prompt: string): Promise<string> {
   const timeoutSignal = AbortSignal.timeout(opts.timeoutMs);

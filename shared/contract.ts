@@ -164,3 +164,35 @@ export const ERROR_META: Record<
   AI_INVALID_OUTPUT: { status: 502, retryable: true, message: "The study set could not be generated reliably. Please try again." },
   INTERNAL_ERROR: { status: 500, retryable: true, message: "Something went wrong on our side. Please try again." },
 };
+
+// ---------- Response validation (used by the client; never trust the network) ----------
+const idText = z.string().min(1);
+
+export const studySetSchema = z.object({
+  id: idText,
+  title: text(LIMITS.title),
+  summary: text(LIMITS.summary),
+  mode: z.enum(STUDY_MODES),
+  flashcards: z.array(flashcardSchema.extend({ id: idText })).max(LIMITS.itemsMax),
+  quiz: z
+    .array(
+      quizQuestionSchema.extend({
+        id: idText,
+        options: z.tuple([text(LIMITS.option), text(LIMITS.option), text(LIMITS.option), text(LIMITS.option)]),
+        correctIndex: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+      }),
+    )
+    .max(LIMITS.itemsMax),
+  createdAt: z.string().min(1),
+});
+
+export const generateResponseSchema = z.object({ studySet: studySetSchema });
+
+export const apiErrorBodySchema = z.object({
+  error: z.object({
+    code: z.enum(API_ERROR_CODES),
+    message: z.string(),
+    retryable: z.boolean(),
+    requestId: z.string(),
+  }),
+});

@@ -41,7 +41,7 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: App
   app.disable("x-powered-by");
 
   // Correlation ID on every request.
-  app.use(((req, res, next) => {
+  app.use(((_req, res, next) => {
     res.locals.requestId = randomUUID();
     res.setHeader("X-Request-Id", res.locals.requestId as string);
     next();
@@ -94,7 +94,7 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: App
   });
 
   // Unknown routes -> JSON, not an HTML page.
-  app.use(((req, res) => {
+  app.use(((_req, res) => {
     const { status, body } = errorBody("NOT_FOUND", res.locals.requestId as string);
     res.status(status).json(body);
   }) as RequestHandler);
