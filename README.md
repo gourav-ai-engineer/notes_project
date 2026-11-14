@@ -12,7 +12,7 @@ This is a React app, not a chatbot: the model returns structured JSON, the serve
 |---|---|---|
 | ![Results](docs/screenshots/desktop-4-results.png) | ![Error](docs/screenshots/desktop-5-error.png) | ![Mobile quiz](docs/screenshots/mobile-320-3-quiz-feedback.png) |
 
-*Screenshots are captured by the Playwright suite against the real UI with a mocked API response (no live model call).*
+*Screenshots are captured by the Playwright suite against the real UI with a mocked API response (no live model call). Regenerate with `npm run test:e2e:screenshots`.*
 
 ## Features
 
@@ -82,7 +82,7 @@ Production-style run: `npm run start:prod` (builds, then serves on <http://local
 5. The server assigns IDs and timestamps itself; the client validates the response again before rendering.
 6. The score is computed in the app from the user's answers — never by the model.
 
-Stable error codes the UI branches on: `INVALID_REQUEST`, `PAYLOAD_TOO_LARGE`, `NOT_FOUND`, `AI_NOT_CONFIGURED`, `AI_RATE_LIMITED`, `AI_PROVIDER_ERROR`, `AI_TIMEOUT`, `AI_EMPTY_OUTPUT`, `AI_INVALID_OUTPUT`, `INTERNAL_ERROR` (+ client-only `NETWORK_ERROR`, `CLIENT_TIMEOUT`, `BAD_RESPONSE`).
+Stable error codes the UI branches on: `INVALID_REQUEST`, `PAYLOAD_TOO_LARGE`, `NOT_FOUND`, `AI_NOT_CONFIGURED`, `AI_CONFIG_ERROR` (key/model rejected, non-retryable), `AI_RATE_LIMITED`, `AI_PROVIDER_ERROR`, `AI_TIMEOUT`, `AI_EMPTY_OUTPUT`, `AI_INVALID_OUTPUT`, `INTERNAL_ERROR` (+ client-only `NETWORK_ERROR`, `CLIENT_TIMEOUT`, `BAD_RESPONSE`).
 
 **Stale-request protection:** every generation gets an increasing ID and aborts the previous request. Only the latest request may update state — late successes *and* late failures from older requests are dropped. A deterministic test resolves request B before A and asserts B stays on screen (the fake ignores the abort signal, so the ID guard itself is tested).
 
@@ -91,7 +91,7 @@ Stable error codes the UI branches on: `INVALID_REQUEST`, `PAYLOAD_TOO_LARGE`, `
 Run on this machine at the end of development:
 
 - `npm run lint` — pass · `npm run typecheck` — pass · `npm run build` — pass
-- `npm test` — **97 tests passed** (7 files)
+- `npm test` — **105 tests passed** (7 files)
 - `npm run test:e2e` — **18 passed** (9 flows × desktop and 320 px)
 - Manual real-browser QA at desktop and 320 px, including the full stack with no key (real `AI_NOT_CONFIGURED` error path).
 - **A live Gemini call has not been made** — no API key was available while building. The Gemini adapter is verified with the real SDK against a local mock server (request shape, schema-mode config, 429/5xx/empty/abort handling), but the real model's output quality and the current default model id are unverified until you run the smoke test below.
@@ -100,7 +100,8 @@ Run on this machine at the end of development:
 
 1. Put your key in `.env`, run `npm start`, open <http://localhost:5173>.
 2. Click the "Photosynthesis" chip → **Both** → Generate.
-3. Expect 3–10 flashcards and quiz questions within ~5–20 s. If the call fails with `AI_PROVIDER_ERROR`, check the server console and try another `GEMINI_MODEL` (model ids change; see <https://ai.google.dev/gemini-api/docs/models>).
+3. Expect 3–10 flashcards and quiz questions within ~5–20 s.
+4. If it fails, the server console logs the error code and upstream HTTP status (never the key or your notes). `AI_CONFIG_ERROR` (a 4xx from Gemini) means the key or model id was rejected, or Gemini refused the request schema — check `GEMINI_API_KEY` and try another `GEMINI_MODEL` (model ids change; see <https://ai.google.dev/gemini-api/docs/models>). `AI_PROVIDER_ERROR` is a 5xx/network problem and is worth retrying.
 
 ## AI-use note
 

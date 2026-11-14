@@ -153,6 +153,27 @@ describe("loading, errors and retry", () => {
   });
 });
 
+describe("focus management", () => {
+  it("moves focus to the loading panel, then the new title, and back to the notes after Cancel", async () => {
+    const d = deferred<StudySet>();
+    const user = await generateWith(vi.fn(() => d.promise));
+    expect(screen.getByRole("status")).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByLabelText(/your notes or topic/i)).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: /generate study set/i }));
+    d.resolve(makeStudySet());
+    expect(await screen.findByRole("heading", { name: "Photosynthesis" })).toHaveFocus();
+  });
+
+  it("returns focus to the notes field after Edit notes", async () => {
+    const user = await generateWith(ok());
+    await user.click(await screen.findByRole("button", { name: "Edit notes" }));
+    expect(screen.getByLabelText(/your notes or topic/i)).toHaveFocus();
+  });
+});
+
 describe("mode-specific workspace", () => {
   it("flashcards-only sets show no Quiz or Retest tab", async () => {
     await generateWith(ok(makeStudySet({ mode: "flashcards", quiz: [] })));

@@ -6,6 +6,7 @@ export const ERROR_TITLES: Record<ApiErrorCode, string> = {
   PAYLOAD_TOO_LARGE: "Notes are too large",
   NOT_FOUND: "Something is misconfigured",
   AI_NOT_CONFIGURED: "AI isn't set up yet",
+  AI_CONFIG_ERROR: "AI key or model rejected",
   AI_RATE_LIMITED: "The AI is busy",
   AI_PROVIDER_ERROR: "The AI service is unavailable",
   AI_TIMEOUT: "That took too long",

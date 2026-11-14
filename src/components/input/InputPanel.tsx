@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent, type Ref } from "react";
 import { Sparkles } from "lucide-react";
 import { LIMITS, validateNotes, type StudyMode } from "../../../shared/contract";
 import { primaryButton } from "../ui/buttons";
@@ -17,9 +17,10 @@ interface Props {
   onNotesChange: (notes: string) => void;
   onModeChange: (mode: StudyMode) => void;
   onSubmit: () => void;
+  textareaRef?: Ref<HTMLTextAreaElement>;
 }
 
-export function InputPanel({ notes, mode, onNotesChange, onModeChange, onSubmit }: Props) {
+export function InputPanel({ notes, mode, onNotesChange, onModeChange, onSubmit, textareaRef }: Props) {
   const ids = useId();
   const [showError, setShowError] = useState(false);
 
@@ -52,6 +53,7 @@ export function InputPanel({ notes, mode, onNotesChange, onModeChange, onSubmit 
         </p>
         {/* No maxLength on purpose: silently truncating pasted notes would lose text. */}
         <textarea
+          ref={textareaRef}
           id={`${ids}-notes`}
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}

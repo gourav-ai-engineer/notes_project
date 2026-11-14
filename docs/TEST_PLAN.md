@@ -25,12 +25,13 @@ Automated tests never call a live model: they use a scripted fake provider, a lo
 | Quiz needs 4 distinct options; bad `correctIndex`; over-limit; duplicates | `studySet.test.ts` |
 | Server-issued IDs (model IDs ignored) | `studySet.test.ts` `normalizeStudySet` (this test caught a real ordering bug) |
 | At most one repair; repair succeeds; still-invalid → controlled error | `api.test.ts` asserts provider call count ≤ 2 |
-| Timeout, provider failure, rate limit, missing key | `api.test.ts` (504 / 503 / 429 / `AI_NOT_CONFIGURED`) |
+| Timeout, provider failure, rate limit, missing key, rejected key/model | `api.test.ts` (504 / 503 / 429 / `AI_NOT_CONFIGURED` / non-retryable `AI_CONFIG_ERROR` with upstream status logged) |
 | Malformed request JSON → JSON 400; oversize → JSON 413; 404 JSON | `api.test.ts` |
 | No secrets / notes / raw output / stack traces in responses or logs | `api.test.ts` "secrets and privacy" |
-| Real SDK sends schema-mode config, key, model; maps 429/5xx; abort | `geminiProvider.test.ts` |
+| Real SDK sends schema-mode config, key, model; maps 429 / other 4xx (config) / 5xx; abort | `geminiProvider.test.ts` |
 | Client maps network / timeout / bad body / typed errors | `studyApi.test.ts` |
 | **Late response A cannot overwrite newer B** (B resolves first) | `staleResponse.test.tsx`; fake `generate` ignores the abort signal so the ID guard is what's tested; also covers late failure, AbortError, cancel, unmount |
+| Focus moves to loading panel → new title → notes field after Cancel/Edit | `app.test.tsx` "focus management" |
 | Notes validation + character limit (no silent truncation) | `app.test.tsx` "input form" |
 | Failure preserves notes + mode; Retry; non-retryable has no Retry | `app.test.tsx`, `study.spec.ts` |
 | Flashcard flip, next/prev boundaries, keyboard | `app.test.tsx`, `study.spec.ts` |

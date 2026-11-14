@@ -538,13 +538,85 @@ If one command is not implemented, either implement it or explicitly document wh
 
 You are expected to use the tools that materially improve this project. Do not install every available plugin. Use a small, complementary set, check whether a tool is already installed before installing it, inspect the source/permissions of community tools, and verify successful activation. If a plugin is unavailable or installation requires an interactive approval you cannot complete, state that and continue with the best safe fallback. Never claim a plugin was used if it was not available.
 
-Recommended core plugins (Anthropic's official marketplace): `frontend-design`, `superpowers`, `context7`, `playwright`, `code-review`, `code-simplifier`, `security-guidance`, `typescript-lsp`.
+## Recommended core plugins
 
-UI/UX Pro Max (community skill, `nextlevelbuilder/ui-ux-pro-max-skill`) for design-system recommendations, paired with `frontend-design`. shadcn/ui MCP only if shadcn components are used. Defer GitHub, Vercel, Figma, Supabase and unrelated plugins to later phases or not at all.
+Install or use these from Anthropic's official Claude Code marketplace where available:
 
-Tool hygiene: prefer verified marketplace entries and official docs; treat third-party plugin code and MCP servers as executable software and inspect before installing; keep the smallest useful set; verify activation (`/mcp`).
+```text
+/plugin install frontend-design@claude-plugins-official
+/plugin install superpowers@claude-plugins-official
+/plugin install context7@claude-plugins-official
+/plugin install playwright@claude-plugins-official
+/plugin install code-review@claude-plugins-official
+/plugin install code-simplifier@claude-plugins-official
+/plugin install security-guidance@claude-plugins-official
+/plugin install typescript-lsp@claude-plugins-official
+```
 
-*(Abridged in this copy; see the original brief for the full install commands and reference links.)*
+Purpose:
+- **frontend-design:** produce a distinctive, production-grade interface and avoid generic AI-generated frontend patterns.
+- **superpowers:** use structured planning, systematic debugging, and test-driven implementation where appropriate. Keep the assignment timebox and P0 scope in control; do not let process ceremony consume the project.
+- **context7:** fetch current documentation for React, Vite, Tailwind, shadcn/ui, Zod, the selected AI SDK, and test tools instead of relying on stale remembered APIs.
+- **playwright:** inspect the running app in a real browser, exercise user flows, test mobile layouts, and capture screenshots.
+- **code-review:** perform a separate final review for correctness, regressions, and maintainability.
+- **code-simplifier:** simplify the finished implementation without changing behaviour; rerun tests afterwards.
+- **security-guidance:** review API-key handling, unsafe rendering, validation, request handling, and accidental exposure of secrets.
+
+## UI/UX Pro Max — specifically requested design skill
+
+This is a community-maintained third-party skill, not an Anthropic-built plugin. Review its repository and installation instructions before using it. Claude Code installation commands:
+
+```text
+/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
+/plugin install ui-ux-pro-max@ui-ux-pro-max-skill
+```
+
+It provides design-system intelligence such as style, palette, typography, and stack-specific UI/UX recommendations. Use it to recommend the product's visual direction and design tokens. Pair it with `frontend-design` for implementation, but resolve conflicting recommendations into one consistent design system rather than mixing several unrelated styles.
+
+Alternative installer if the marketplace installation does not work (do not use an outdated `uipro-cli` package):
+
+```bash
+npx ui-ux-pro-max-cli init --ai claude
+```
+
+Only run installation commands when the environment and user permissions allow them. Do not install globally unless there is a clear reason; prefer project-scoped configuration where possible.
+
+## shadcn/ui MCP — useful component discovery
+
+If using shadcn/ui, add the official shadcn MCP server to the project's `.mcp.json` and restart/reload Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    }
+  }
+}
+```
+
+Use it to discover/install only components that the app actually needs (for example tabs, buttons, progress, radio-group, tooltip, and dialog). Do not add a large component library or copy an entire template just because it is available. Verify the installed components and their accessibility.
+
+## TypeScript language support
+
+The official TypeScript/JavaScript LSP plugin is included above. Enable it when compatible with the current environment for go-to-definition, reference lookup, and type diagnostics. It is helpful but not a blocker.
+
+## Tools to defer until the next phase
+
+- **GitHub plugin:** useful when the user explicitly starts the GitHub publishing phase. Do not create a remote repository, push code, or publish this project during the implementation phase.
+- **Vercel/deployment plugin:** defer until after the GitHub phase and only when deployment is requested.
+- **Figma plugin:** use only if the user supplies a Figma file or asks for a Figma deliverable.
+- **Supabase/database plugins:** not needed; this assignment does not require authentication, cloud sync, or a database.
+- **Unrelated plugins/connectors:** do not install or use them.
+
+## Tool hygiene
+
+- Prefer Anthropic-verified marketplace entries and official project documentation.
+- Treat third-party plugin code and MCP servers as executable software. Inspect repository, permissions, package scripts, and requested access before installation.
+- Do not grant broad filesystem, browser, shell, or account access unless necessary for this local project.
+- If a plugin conflicts with another plugin, keep the smallest useful set and document the choice.
+- After setup, verify the expected plugins/MCP servers appear as connected (for MCP, use `/mcp`).
 
 ---
 
@@ -552,20 +624,85 @@ Tool hygiene: prefer verified marketplace entries and official docs; treat third
 
 Work from the supplied project folder. Do not ask the user to choose architecture, libraries, component names, or minor design details. Make sensible, reversible engineering decisions and document them. Ask the user only when a genuinely required secret, permission, or irreversible external action is missing. Do not push to GitHub or deploy.
 
-- **Phase 0 — inspect and plan:** inspect the folder, read the assignment if present, preserve existing work, check tools, write PRD/CLAUDE/plan/architecture/test-plan docs.
-- **Phase 1 — foundation:** React + TS + Vite, styling and tokens, small Node backend with Vite proxy, env validation, `.env.example`, `.gitignore`, scripts incl. a root `npm start`.
-- **Phase 2 — design and core UI:** choose and document one design system; build input, mode selection, workspace, flashcards, quiz, results, retest using typed fixtures; confirm responsive/keyboard behaviour.
-- **Phase 3 — real AI integration:** consult current provider docs; backend-only adapter with structured output; Zod validation, semantic checks, normalisation, one bounded repair, timeouts, typed errors; wire the frontend API module.
-- **Phase 4 — resilience and tests:** latest-request protection and cancellation; tests for malformed JSON, wrong shape, empty output, timeout, provider failure, stale responses; flashcard/quiz/retest tests; Playwright smoke tests.
-- **Phase 5 — visual/browser QA:** inspect desktop and mobile in a real browser across all states; review accessibility, spacing, contrast, focus, overflow, motion.
-- **Phase 6 — review and documentation:** code-review and security passes; simplify only after behaviour is stable; remove dead code; complete the README; demo script; confirm GitHub-ready locally without pushing.
-- **Phase 7 — final audit:** map each assignment requirement to file/test/evidence; report anything incomplete honestly.
+## Phase 0 — inspect and plan
+
+1. Inspect the complete folder, existing files, package manager, Git status, README, and any existing source code.
+2. If the original assignment PDF is present, read it and reconcile requirements against this PRD. Do not assume the folder is empty.
+3. Preserve existing useful work. Do not overwrite user content blindly.
+4. Check available Claude plugins/MCP servers and use the recommended safe tools above.
+5. Create/update `PRD.md`, `CLAUDE.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE.md`, and `docs/TEST_PLAN.md` as appropriate.
+6. Write a concise implementation plan with P0 first and a time budget.
+
+## Phase 1 — project foundation
+
+1. Set up or adapt React + TypeScript + Vite.
+2. Set up styling, design tokens, components, and responsive shell.
+3. Set up the small Node backend and Vite proxy.
+4. Add environment-variable validation, `.env.example`, and `.gitignore`.
+5. Add scripts for dev, build, lint, typecheck, tests, and e2e. The root package must provide `npm start` as the simple local run command; it should start the frontend and backend together in development. Document a separate production command if needed.
+6. Verify the bare app and health route run locally, including the required `npm start` workflow.
+
+## Phase 2 — design and core UI
+
+1. Use UI/UX Pro Max and frontend-design to select and document one coherent design system.
+2. Build the notes input, mode selection, and generate state.
+3. Build the study workspace, flashcard UI, quiz UI, results, and retest flow using typed fixtures first.
+4. Confirm responsive and keyboard behaviour before adding live AI.
+
+## Phase 3 — real AI integration and validation
+
+1. Consult current official provider documentation through Context7/official docs.
+2. Implement a backend-only provider adapter and structured output request.
+3. Implement Zod validation, semantic checks, normalization, bounded single repair attempt, timeouts, and typed errors.
+4. Wire the frontend API module to the backend.
+5. Test with fixture responses for valid and invalid model cases.
+6. Provide `.env.example` and clear setup instructions for the actual API key.
+
+## Phase 4 — resilience and tests
+
+1. Implement latest-request protection and cancellation.
+2. Add tests for malformed JSON, wrong shape, empty output, timeout, provider failure, and stale responses.
+3. Add flashcard, quiz, scoring, and retest tests.
+4. Add Playwright smoke tests.
+5. Fix every P0 regression before considering stretch work.
+
+## Phase 5 — visual/browser QA
+
+1. Start the app and use Playwright to inspect desktop and mobile screens.
+2. Check empty, loading, error, success, correct, incorrect, and perfect-score states.
+3. Review accessibility, spacing, typography, contrast, keyboard focus, overflow, and motion.
+4. Use screenshots to guide fixes; do not claim visual QA without actually running it.
+
+## Phase 6 — review and documentation
+
+1. Run code-review and security-guidance passes.
+2. Run code-simplifier only after behaviour is stable; rerun the complete quality suite afterward.
+3. Remove dead code, unused dependencies, debug output, placeholder controls, and console noise.
+4. Complete README: setup, run commands, environment variables, usage, architecture overview, AI-use note, known limitations, actual time spent, and screen-recording instructions.
+5. Add a short manual demo script and note the exact local run command.
+6. Confirm the project is GitHub-ready locally, but do not create/push a remote repository.
+
+## Phase 7 — final audit
+
+Create a final checklist mapping each assignment requirement to the file/test/evidence that satisfies it. Report anything not completed honestly, with the smallest next step. Do not hide incomplete work behind claims such as “production-ready.”
 
 ---
 
 # 14. Deliverables expected inside the folder
 
-Working source; backend LLM integration with server-side secrets; structured schema and validation; unit/component/API tests and a small Playwright suite; `.env.example` and a correct `.gitignore`; `README.md` (including the exact `npm install` and `npm start` workflow); `PRD.md`; `CLAUDE.md`; `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE.md`, `docs/TEST_PLAN.md`; a short screen-recording script/checklist. No secrets, no unnecessary build artefacts committed, no remote deployment during this phase.
+At minimum:
+
+- Working application source code.
+- Backend LLM integration with server-side secret handling.
+- Structured output schema and validation.
+- Unit/component/API tests and a small Playwright smoke suite.
+- `.env.example` and a correct `.gitignore`.
+- `README.md` with all assignment-required sections, including the exact `npm install` and `npm start` workflow.
+- `PRD.md` (this document).
+- `CLAUDE.md` with project-specific commands, architecture, conventions, and constraints.
+- `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE.md`, `docs/TEST_PLAN.md`.
+- A short manual screen-recording script/checklist.
+- No secrets, no generated build artefacts committed unnecessarily, and no remote deployment during this phase.
 
 ---
 
@@ -607,12 +744,60 @@ The project is done only when all applicable P0 criteria are demonstrably true:
 
 ---
 
-# 17–19. README content, final response format, start instruction
+# 17. README content requirements
 
-The README must cover: name and description; features and real screenshots; stack and architecture; prerequisites and exact setup; environment variables and `.env.example`; how to run frontend and backend (`npm start` from the root); how to run lint/typecheck/tests/build/e2e; the schema and validation approach; error-handling and stale-request strategy; an honest AI-usage note; known limitations and next steps; actual time spent (never invented); a short screen-recording checklist.
+The README must include:
 
-The final handoff must report: what was built; architecture decisions; files changed; plugins/MCP tools actually used (and any that could not be activated); install/run/test commands; real test results; whether a live LLM call was tested and the single env var needed; limitations and remaining P1/P2 work; how to record the demo; confirmation that nothing was pushed or deployed.
+1. Project name and concise description.
+2. Features and screenshots (only real screenshots captured from the implemented app).
+3. Tech stack and high-level architecture.
+4. Prerequisites and exact local setup commands.
+5. Environment variables with `.env.example` reference; never include real keys.
+6. How to run frontend and backend locally. Ensure `npm start` works from the project root after dependencies and environment variables are configured; `npm run dev` may be an alias.
+7. How to run lint, typecheck, unit/component tests, build, and e2e tests.
+8. How the structured AI response schema and validation work.
+9. Error-handling strategy and stale-request protection.
+10. Honest AI-usage note: explain that Claude/other AI tools assisted with planning, implementation, debugging, or tests as actually used. Do not claim all code was manually written if it was not.
+11. Known limitations and what would be done next.
+12. Actual time spent. Do not invent or estimate this on the user's behalf; leave a clear placeholder if actual time cannot be measured.
+13. Short screen-recording checklist and local demo steps.
 
-Start: inspect the folder, check tools, then execute the phases in order, autonomously, and deliver a working, tested local Study Assistant — not merely a plan or mockup. GitHub push and deployment are a separate later phase.
+---
 
-> **Note on this copy:** sections 12 and 13 and 17–19 are condensed from the original brief; all functional, contract, API, testing and acceptance requirements (sections 1–11, 14–16) are reproduced in full.
+# 18. Final response format from Claude
+
+When implementation is complete, provide a concise but evidence-based handoff containing:
+
+1. What was built and the primary user flow.
+2. Architecture and key implementation decisions.
+3. Exact files/folders created or changed.
+4. Plugins/MCP tools actually used and any that could not be activated.
+5. Exact install/run/test commands.
+6. Test commands executed and their real pass/fail counts.
+7. Whether a live LLM call was tested with a valid key. If not, say so and identify the single environment variable the user must provide.
+8. Known limitations and remaining P1/P2 work.
+9. How to record the required demo.
+10. Confirmation that no GitHub push or deployment was performed.
+
+Do not finish with vague suggestions or ask the user to decide the next technical step. Complete the local implementation as far as the environment and credentials permit, then provide the exact next action needed from the user, if any.
+
+---
+
+# 19. Start instruction — execute now
+
+You are the lead product engineer, frontend engineer, AI integration engineer, UI/UX designer, and QA engineer for this assignment. Start by inspecting the supplied folder and checking available tools. Then execute the phases in order. Make decisions autonomously, keep the scope aligned with the assignment, implement the real working product, test it, and document it. Do not stop after writing a plan, generating a mockup, or scaffolding files. Do not ask for confirmation for routine reversible implementation decisions. Do not push to GitHub or deploy; that will be a separate phase after local completion.
+
+**Your first action is to inspect the project folder and report its existing structure internally to your working process, then begin Phase 0. Your final deliverable is a working, tested local Study Assistant—not merely code snippets or a design proposal.**
+
+---
+
+# Reference links for tool setup
+
+- Claude plugins and marketplace: https://claude.com/marketplace/plugins
+- Claude plugin usage/help: https://support.claude.com/en/articles/13837440-use-plugins-in-claude
+- Anthropic frontend-design plugin: https://github.com/anthropics/claude-code/tree/main/plugins/frontend-design
+- UI/UX Pro Max skill and install instructions: https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
+- Context7 Claude Code setup: https://context7.com/docs/clients/claude-code
+- shadcn/ui MCP setup: https://ui.shadcn.com/docs/mcp
+- Microsoft Playwright MCP setup: https://playwright.dev/docs/getting-started-mcp
+- Anthropic official plugin marketplace repository: https://github.com/anthropics/claude-plugins-official

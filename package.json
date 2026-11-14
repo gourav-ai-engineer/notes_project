@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e:screenshots": "cross-env CAPTURE_SCREENSHOTS=1 playwright test"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",

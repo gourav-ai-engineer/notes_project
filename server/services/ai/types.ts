@@ -17,19 +17,24 @@ export interface ProviderRequest {
 /** Error with a stable code. The route maps it to an HTTP response. */
 export class AppError extends Error {
   readonly code: ApiErrorCode;
-  constructor(code: ApiErrorCode, detail?: string) {
+  /** Upstream HTTP status, kept for server logs only (never sent to the client). */
+  readonly providerStatus?: number;
+  constructor(code: ApiErrorCode, detail?: string, providerStatus?: number) {
     super(detail ?? code);
+    this.providerStatus = providerStatus;
     this.name = "AppError";
     this.code = code;
   }
 }
 
 /** Thrown by provider adapters, translated into an AppError by the service. */
-export type ProviderFailureKind = "rate_limited" | "unavailable" | "not_configured";
+export type ProviderFailureKind = "rate_limited" | "unavailable" | "not_configured" | "config";
 export class ProviderError extends Error {
   readonly kind: ProviderFailureKind;
-  constructor(kind: ProviderFailureKind, detail?: string) {
+  readonly httpStatus?: number;
+  constructor(kind: ProviderFailureKind, detail?: string, httpStatus?: number) {
     super(detail ?? kind);
+    this.httpStatus = httpStatus;
     this.name = "ProviderError";
     this.kind = kind;
   }

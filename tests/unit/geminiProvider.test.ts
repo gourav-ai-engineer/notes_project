@@ -74,6 +74,19 @@ describe("createGeminiProvider (real SDK, mock server)", () => {
     expect(err.kind).toBe("unavailable");
   });
 
+  it.each([
+    [403, "config"],
+    [404, "config"],
+    [400, "config"],
+    [408, "unavailable"],
+    [503, "unavailable"],
+  ])("classifies HTTP %i as %s and keeps the status", async (status, kind) => {
+    const { baseUrl } = await startMock((_c, respond) => respond(status, { error: { code: status, message: "x", status: "X" } }));
+    const err = await createGeminiProvider("k", "m", { baseUrl }).generate(request()).catch((e) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ kind, httpStatus: status });
+  });
+
   it("returns an empty string (not a crash) when Gemini returns no candidates", async () => {
     const { baseUrl } = await startMock((_c, respond) => respond(200, { candidates: [] }));
     expect(await createGeminiProvider("k", "m", { baseUrl }).generate(request())).toBe("");

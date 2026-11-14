@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { StudyMode } from "../shared/contract";
 import { InputPanel } from "./components/input/InputPanel";
 import { ErrorBanner } from "./components/states/ErrorBanner";
@@ -18,6 +18,18 @@ export default function App({ generate }: Props) {
   const [mode, setMode] = useState<StudyMode>("both");
   const [editing, setEditing] = useState(false);
   const { state, run, cancel } = useStudyGenerator(generate);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [refocusInput, setRefocusInput] = useState(0);
+
+  // After Cancel / Edit, the view that had focus is gone; put focus back in the notes field.
+  useEffect(() => {
+    if (refocusInput > 0) inputRef.current?.focus();
+  }, [refocusInput]);
+
+  function backToInput(fn: () => void) {
+    fn();
+    setRefocusInput((n) => n + 1);
+  }
 
   function submit() {
     setEditing(false);
@@ -40,7 +52,7 @@ export default function App({ generate }: Props) {
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
         {showStudy ? (
-          <StudyWorkspace key={state.studySet.id} studySet={state.studySet} onNewNotes={() => setEditing(true)} />
+          <StudyWorkspace key={state.studySet.id} studySet={state.studySet} onNewNotes={() => backToInput(() => setEditing(true))} />
         ) : (
           <div className="space-y-6">
             {state.status === "idle" || state.status === "error" || state.status === "success" ? (
@@ -52,12 +64,12 @@ export default function App({ generate }: Props) {
               </div>
             ) : null}
 
-            {state.status === "error" && <ErrorBanner error={state.error} onRetry={submit} onDismiss={cancel} />}
+            {state.status === "error" && <ErrorBanner error={state.error} onRetry={submit} onDismiss={() => backToInput(cancel)} />}
 
             {state.status === "loading" ? (
-              <LoadingState onCancel={cancel} />
+              <LoadingState onCancel={() => backToInput(cancel)} />
             ) : (
-              <InputPanel notes={notes} mode={mode} onNotesChange={setNotes} onModeChange={setMode} onSubmit={submit} />
+              <InputPanel notes={notes} mode={mode} onNotesChange={setNotes} onModeChange={setMode} onSubmit={submit} textareaRef={inputRef} />
             )}
           </div>
         )}

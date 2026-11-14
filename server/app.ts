@@ -87,7 +87,8 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: App
       if (clientGone.signal.aborted) return; // nobody is listening
       const code: ServerErrorCode = err instanceof AppError && err.code in ERROR_META ? (err.code as ServerErrorCode) : "INTERNAL_ERROR";
       // Log the safe category only — no notes, no raw model output, no stack in the response.
-      logger.error("generate failed", { requestId, code });
+      const providerStatus = err instanceof AppError ? err.providerStatus : undefined;
+      logger.error("generate failed", { requestId, code, ...(providerStatus ? { providerStatus } : {}) });
       const { status, body } = errorBody(code, requestId);
       res.status(status).json(body);
     }

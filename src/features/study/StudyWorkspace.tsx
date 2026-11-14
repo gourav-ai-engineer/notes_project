@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { PartyPopper, Target } from "lucide-react";
 import type { QuizQuestion, StudySet } from "../../../shared/contract";
 import { FlashcardDeck } from "../../components/flashcards/FlashcardDeck";
@@ -23,6 +23,10 @@ interface RetestState {
 
 export function StudyWorkspace({ studySet, onNewNotes }: Props) {
   const prefix = useId();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // A new study set replaces the loading view, which had focus. Move focus to the title so keyboard
+  // and screen-reader users land on the new content instead of <body>.
+  useEffect(() => headingRef.current?.focus(), []);
   const hasCards = studySet.flashcards.length > 0;
   const hasQuiz = studySet.quiz.length > 0;
 
@@ -56,7 +60,7 @@ export function StudyWorkspace({ studySet, onNewNotes }: Props) {
     <div className="rise-in space-y-6">
       <header className="space-y-3">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
-          <h2 className="wrap-anywhere min-w-0 font-display text-3xl font-semibold leading-tight sm:text-4xl">{studySet.title}</h2>
+          <h2 ref={headingRef} tabIndex={-1} className="wrap-anywhere min-w-0 font-display outline-none text-3xl font-semibold leading-tight sm:text-4xl">{studySet.title}</h2>
           <button type="button" onClick={onNewNotes} className={secondaryButton}>
             Edit notes
           </button>

@@ -32,8 +32,10 @@ export function createGeminiProvider(apiKey: string, model: string, options: Gem
         // Aborts propagate unchanged so the service can tell timeout from provider failure.
         if (signal.aborted) throw err;
         if (err instanceof ApiError) {
-          if (err.status === 429) throw new ProviderError("rate_limited");
-          throw new ProviderError("unavailable", `status ${err.status}`);
+          if (err.status === 429) throw new ProviderError("rate_limited", undefined, 429);
+          // Other 4xx (bad key, retired model, rejected schema) will not fix themselves on retry.
+          const isConfig = err.status >= 400 && err.status < 500 && err.status !== 408;
+          throw new ProviderError(isConfig ? "config" : "unavailable", `status ${err.status}`, err.status);
         }
         throw new ProviderError("unavailable");
       }

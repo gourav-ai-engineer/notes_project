@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { makeStudySet } from "../fixtures/study";
-import { answer, expectNoHorizontalOverflow, generate, mockError, mockGenerate } from "./helpers";
-
-const SHOTS = "docs/screenshots";
+import { answer, expectNoHorizontalOverflow, generate, mockError, mockGenerate, shot } from "./helpers";
 
 test("initial view loads with the input form", async ({ page }, info) => {
   await page.goto("/");
@@ -10,7 +8,7 @@ test("initial view loads with the input form", async ({ page }, info) => {
   await expect(page.getByLabel("Your notes or topic")).toBeVisible();
   await expect(page.getByRole("radio", { name: /^Both/ })).toBeChecked();
   await expectNoHorizontalOverflow(page);
-  await page.screenshot({ path: `${SHOTS}/${info.project.name}-1-input.png` });
+  await shot(page, info, "1-input");
 });
 
 test("generate, flip and navigate flashcards", async ({ page }, info) => {
@@ -26,7 +24,7 @@ test("generate, flip and navigate flashcards", async ({ page }, info) => {
   await card.click();
   await expect(card).toHaveAttribute("data-flipped", "true");
   await expect(card).toHaveAccessibleName(/In the chloroplasts/);
-  await page.screenshot({ path: `${SHOTS}/${info.project.name}-2-flashcard-flipped.png` });
+  await shot(page, info, "2-flashcard-flipped");
 
   await page.getByRole("button", { name: /Next/ }).click();
   await expect(page.getByTestId("card-progress")).toHaveText("Card 2 of 3");
@@ -58,14 +56,14 @@ test("quiz with mixed answers, then retest shows only the wrong ones", async ({ 
   await page.getByRole("button", { name: "Check answer" }).click();
   await expect(page.getByTestId("feedback")).toContainText("Incorrect");
   await expect(page.getByTestId("feedback")).toContainText("Chloroplasts contain chlorophyll");
-  await page.screenshot({ path: `${SHOTS}/${info.project.name}-3-quiz-feedback.png` });
+  await shot(page, info, "3-quiz-feedback");
   await page.getByRole("button", { name: "Next question" }).click();
 
   await answer(page, "Oxygen"); // right
   await answer(page, "Stores glucose", true); // wrong
 
   await expect(page.getByTestId("score")).toHaveText("1 / 3");
-  await page.screenshot({ path: `${SHOTS}/${info.project.name}-4-results.png` });
+  await shot(page, info, "4-results");
 
   await page.getByRole("button", { name: "Retest wrong answers" }).click();
   const panel = page.getByRole("tabpanel", { name: /Retest wrong/ });
@@ -107,7 +105,7 @@ test("a failed request keeps the notes, shows a retry, and recovers", async ({ p
   await expect(alert).toContainText("couldn't be used");
   await expect(page.getByLabel("Your notes or topic")).not.toBeEmpty();
   await expect(page.getByRole("radio", { name: /^Quiz/ })).toBeChecked();
-  await page.screenshot({ path: `${SHOTS}/${info.project.name}-5-error.png` });
+  await shot(page, info, "5-error");
 
   await alert.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("heading", { name: "Photosynthesis" })).toBeVisible();

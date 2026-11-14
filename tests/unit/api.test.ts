@@ -173,6 +173,20 @@ describe("POST /api/study/generate — provider failures", () => {
     expect(res.body.error.code).toBe("AI_PROVIDER_ERROR");
   });
 
+  it("maps a rejected key/model (4xx) to a non-retryable AI_CONFIG_ERROR and logs the upstream status", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "sk-SUPER-SECRET");
+    const { app, logger, calls } = setup([new ProviderError("config", "status 403", 403)]);
+    const res = await request(app).post("/api/study/generate").send(body);
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatchObject({ code: "AI_CONFIG_ERROR", retryable: false });
+    expect(res.body.error.message).toMatch(/GEMINI_API_KEY/);
+    const logged = logger.lines.join("\n");
+    expect(logged).toContain('"providerStatus":403');
+    expect(logged).not.toContain("sk-SUPER-SECRET");
+    expect(calls).toHaveLength(1);
+    vi.unstubAllEnvs();
+  });
+
   it("maps rate limiting to 429", async () => {
     const { app } = setup([new ProviderError("rate_limited")]);
     const res = await request(app).post("/api/study/generate").send(body);
