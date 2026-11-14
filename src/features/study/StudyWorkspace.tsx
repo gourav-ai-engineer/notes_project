@@ -56,7 +56,7 @@ export function StudyWorkspace({ studySet, onNewNotes }: Props) {
     <div className="rise-in space-y-6">
       <header className="space-y-3">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
-          <h2 className="min-w-0 break-words font-display text-3xl font-semibold leading-tight sm:text-4xl">{studySet.title}</h2>
+          <h2 className="wrap-anywhere min-w-0 font-display text-3xl font-semibold leading-tight sm:text-4xl">{studySet.title}</h2>
           <button type="button" onClick={onNewNotes} className={secondaryButton}>
             Edit notes
           </button>
