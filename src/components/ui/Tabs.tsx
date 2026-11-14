@@ -46,7 +46,7 @@ export function Tabs<T extends string>({ tabs, active, onChange, label, idPrefix
             aria-controls={`${base}-panel-${t.id}`}
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(t.id)}
-            className={`flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-semibold transition-colors motion-reduce:transition-none sm:text-base ${
+            className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-sm sm:px-3 font-semibold transition-colors motion-reduce:transition-none sm:text-base ${
               selected ? "bg-surface text-ink shadow-sm" : "text-ink-muted hover:text-ink"
             }`}
           >

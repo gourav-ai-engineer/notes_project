@@ -74,11 +74,12 @@ export function QuizRunner({ questions, kind, onFinish, onRestart, onRetestWrong
       <ProgressBar value={state.index + (state.checked ? 1 : 0)} max={state.questions.length} label={`${kind === "retest" ? "Retest" : "Quiz"} progress`} />
 
       <fieldset className="rounded-card border border-line bg-surface p-5 shadow-card sm:p-7">
-        <legend ref={legendRef} tabIndex={-1} className="wrap-anywhere mb-1 -ml-1 px-1 font-display text-xl leading-snug outline-none sm:text-2xl">
+        <legend ref={legendRef} tabIndex={-1} className="wrap-anywhere float-left w-full font-display text-xl leading-snug outline-none sm:text-2xl">
           {q.question}
         </legend>
 
-        <div className="mt-4 space-y-2.5">
+        {/* clear-both: the legend is floated so it sits inside the fieldset padding, not on its border. */}
+        <div className="clear-both space-y-2.5 pt-4">
           {q.options.map((option, i) => {
             const isSelected = state.selected === i;
             const isCorrect = i === q.correctIndex;
@@ -109,17 +110,20 @@ export function QuizRunner({ questions, kind, onFinish, onRestart, onRetestWrong
                   <span aria-hidden="true" className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border border-current text-xs font-semibold">
                     {LETTERS[i]}
                   </span>
-                  <span className="wrap-anywhere min-w-0 flex-1">{option}</span>
-                  {showCorrect && (
-                    <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-good">
-                      <Check aria-hidden="true" size={18} /> Correct answer
-                    </span>
-                  )}
-                  {showWrong && (
-                    <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-bad">
-                      <X aria-hidden="true" size={18} /> Your answer
-                    </span>
-                  )}
+                  {/* Badge sits under the text, not beside it, so long options keep their full width at 320px. */}
+                  <span className="min-w-0 flex-1">
+                    <span className="wrap-anywhere block">{option}</span>
+                    {showCorrect && (
+                      <span className="mt-1 flex items-center gap-1 text-sm font-semibold text-good">
+                        <Check aria-hidden="true" size={18} /> Correct answer
+                      </span>
+                    )}
+                    {showWrong && (
+                      <span className="mt-1 flex items-center gap-1 text-sm font-semibold text-bad">
+                        <X aria-hidden="true" size={18} /> Your answer
+                      </span>
+                    )}
+                  </span>
                 </span>
               </label>
             );

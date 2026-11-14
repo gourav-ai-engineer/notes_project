@@ -12,7 +12,7 @@ export interface ServerConfig {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const timeout = Number(env.AI_TIMEOUT_MS);
   return {
-    port: Number(env.PORT) || 8787,
+    port: Number(env.API_PORT) || 8787,
     geminiApiKey: env.GEMINI_API_KEY?.trim() || undefined,
     geminiModel: env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite",
     aiTimeoutMs: Number.isFinite(timeout) && timeout > 0 ? timeout : 30_000,
