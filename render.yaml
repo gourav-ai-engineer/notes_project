@@ -1,0 +1,19 @@
+# Render Blueprint: one web service serves the built app and the API.
+# GEMINI_API_KEY is deliberately not in this file. Set it in the Render dashboard (it is never committed).
+services:
+  - type: web
+    name: recall-studio
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npx tsx server/index.ts
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: 10000
+      - key: GEMINI_API_KEY
+        sync: false

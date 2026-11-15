@@ -20,6 +20,12 @@ export interface AppDeps {
   provider: AiProvider;
   aiTimeoutMs: number;
   logger?: Logger;
+  /** Built client folder (`dist`). When set, the API also serves the app, so one process hosts everything. */
+  staticDir?: string;
+  /** Per-client cap on generate calls (each one spends model quota). Omit or set max 0 to disable. */
+  rateLimit?: { max: number; windowMs: number };
+  /** Number of reverse proxies in front of the app (e.g. 1 on Render) so the real client IP is used. */
+  trustProxyHops?: number;
 }
 
 type ServerErrorCode = keyof typeof ERROR_META;
@@ -38,9 +44,26 @@ function errorBody(code: ServerErrorCode, requestId: string): { status: number; 
   };
 }
 
-export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: AppDeps) {
+/** Fixed-window counter per client key. In memory, so it resets on restart and is per instance: a cost guard, not a security boundary. */
+function createRateLimiter({ max, windowMs }: { max: number; windowMs: number }) {
+  const hits = new Map<string, { count: number; resetAt: number }>();
+  return (key: string, now = Date.now()): boolean => {
+    if (hits.size > 5_000) for (const [k, v] of hits) if (v.resetAt <= now) hits.delete(k); // bound memory
+    const entry = hits.get(key);
+    if (!entry || entry.resetAt <= now) {
+      hits.set(key, { count: 1, resetAt: now + windowMs });
+      return true;
+    }
+    entry.count += 1;
+    return entry.count <= max;
+  };
+}
+
+export function createApp({ provider, aiTimeoutMs, logger = consoleLogger, staticDir, rateLimit, trustProxyHops = 0 }: AppDeps) {
   const app = express();
   app.disable("x-powered-by");
+  if (trustProxyHops > 0) app.set("trust proxy", trustProxyHops);
+  const allow = rateLimit && rateLimit.max > 0 ? createRateLimiter(rateLimit) : null;
 
   // Correlation ID on every request.
   app.use(((_req, res, next) => {
@@ -65,7 +88,15 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: App
   const parseUploads: RequestHandler = (req, res, next) =>
     req.is("multipart/form-data") ? upload.array("files")(req, res, next) : next();
 
-  app.post("/api/study/generate", parseUploads, async (req, res) => {
+  // Runs before the body is parsed, so a client over its limit never gets to upload files.
+  const limit: RequestHandler = (req, res, next) => {
+    if (!allow || allow(req.ip ?? "unknown")) return next();
+    const { status, body } = errorBody("AI_RATE_LIMITED", res.locals.requestId as string);
+    res.setHeader("Retry-After", String(Math.ceil((rateLimit?.windowMs ?? 60_000) / 1000)));
+    res.status(status).json(body);
+  };
+
+  app.post("/api/study/generate", limit, parseUploads, async (req, res) => {
     const requestId = res.locals.requestId as string;
     const reject = (code: ServerErrorCode) => {
       const { status, body } = errorBody(code, requestId);
@@ -115,6 +146,28 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: App
       res.status(status).json(body);
     }
   });
+
+  if (staticDir) {
+    // Hashed build assets never change, so they can be cached for a year; index.html must always be revalidated.
+    app.use(
+      express.static(staticDir, {
+        index: false,
+        setHeaders(res, filePath) {
+          const hashed = /[\\/]assets[\\/]/.test(filePath);
+          res.setHeader("Cache-Control", hashed ? "public, max-age=31536000, immutable" : "public, max-age=3600");
+          res.setHeader("X-Content-Type-Options", "nosniff");
+        },
+      }),
+    );
+    // Client-side routes (/library, /sets/abc...) all get the app shell. Anything under /api stays JSON.
+    app.get(/^\/(?!api(?:\/|$)).*/, (_req, res, next) => {
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("X-Frame-Options", "DENY");
+      res.setHeader("Referrer-Policy", "no-referrer");
+      res.sendFile("index.html", { root: staticDir }, (err) => err && next(err));
+    });
+  }
 
   // Unknown routes -> JSON, not an HTML page.
   app.use(((_req, res) => {

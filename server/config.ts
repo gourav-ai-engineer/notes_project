@@ -7,11 +7,15 @@ export interface ServerConfig {
   geminiModel: string;
   /** Timeout for each provider call (initial + at most one repair). */
   aiTimeoutMs: number;
+  /** Generate calls allowed per client IP per minute. 0 disables the limit (the development default). */
+  rateLimitPerMin: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const timeout = Number(env.AI_TIMEOUT_MS);
+  const limit = Number(env.RATE_LIMIT_PER_MIN);
   return {
+    rateLimitPerMin: env.RATE_LIMIT_PER_MIN?.trim() && Number.isFinite(limit) && limit >= 0 ? Math.floor(limit) : env.NODE_ENV === "production" ? 10 : 0,
     port: Number(env.API_PORT) || 8787,
     geminiApiKey: env.GEMINI_API_KEY?.trim() || undefined,
     geminiModel: env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite",

@@ -144,14 +144,24 @@ Tools the brief mentioned but that were **not** available in the build environme
 - Live model output quality/default model id not yet verified with a real key (see above).
 - **Your library lives only in this browser's `localStorage`:** no sync between devices, and clearing site data deletes it. Export a backup from Settings. Uploaded files are not stored, only the generated cards and quiz. A full or blocked store is detected and reported, and unreadable saved data is backed up (`recall-studio:library:corrupt-backup`) rather than discarded.
 - Folders are one level deep (no sub-folders), and there is no drag-and-drop between folders: use Move on a set.
-- Deliberately not built, because they need infrastructure beyond this scope: classes/sharing and accounts (need a backend and auth), podcast mode (needs text-to-speech), games, spaced-repetition scheduling, and deployment.
+- Deliberately not built, because they need infrastructure beyond this scope: classes/sharing and accounts (need a backend and auth), podcast mode (needs text-to-speech), games and spaced-repetition scheduling.
 - No regenerate-from-same-notes or streaming.
 - **The file path has not been tested with a live key.** Inline file parts, the file-rejection mapping (a Gemini 400 with files attached becomes `FILE_UNREADABLE`), and legacy `.doc` pass-through are verified only against a local mock server. `.doc` support relies on Gemini's documentation and is the least certain format; if it fails, save the file as `.docx` or PDF. Encrypted PDFs, `.pptx`/`.xlsx`, and very large scans are not supported or not specially handled.
-- DOCX text extraction has no zip-bomb guard beyond the 10 MB upload cap; fine locally, add one before exposing the API publicly.
+- DOCX text extraction has no zip-bomb guard beyond the 10 MB upload cap. Acceptable for a small deployment, but add one before real public traffic.
 - Very long notes are sent as-is (up to 20,000 chars); no chunking/summarising for huge documents.
-- No rate limiting on the API (fine for local use; add before exposing publicly).
+- Rate limiting is a simple in-memory per-IP cap on generate calls (10/min in production, `RATE_LIMIT_PER_MIN` to change). It resets on restart and is per instance: a cost guard, not real abuse protection. There are no accounts, so anyone with the URL can spend your Gemini quota up to that limit.
 - Playwright covers Edge/Chromium only; accessibility was reviewed via semantics and tests, not with a screen reader.
 - Two unused Vite template files remain and can be deleted: `src/assets/` and `public/icons.svg`.
+
+## Deploying (Render)
+
+One Node web service serves the built app and the API together, so there is no CORS and the Gemini key never reaches the browser.
+
+1. Push the repo to GitHub, then in Render choose **New > Blueprint** and select it. `render.yaml` defines the service (build `npm ci --include=dev && npm run build`, start `npx tsx server/index.ts`, health check `/api/health`).
+2. When prompted, set **`GEMINI_API_KEY`** in the Render dashboard. It is deliberately not in `render.yaml`.
+3. Open the service URL. `/api/health` should return `{"ok":true}`; then generate a set to confirm the key works.
+
+Notes: the free plan sleeps after idle time, so the first request can take about a minute. Library data stays in each visitor's own browser. To try the production setup locally: `npm run build`, then `npm run serve` and open <http://localhost:8787>.
 
 ## Time spent
 
@@ -171,4 +181,4 @@ Tools the brief mentioned but that were **not** available in the build environme
 
 ## Project status
 
-Built locally; not pushed or deployed.
+Pushed to a private GitHub repo. A Render Blueprint (`render.yaml`) is included; whether it is live depends on whether you have created the service.

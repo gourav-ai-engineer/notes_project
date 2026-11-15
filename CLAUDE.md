@@ -28,5 +28,6 @@ Study-assistant take-home: React app that turns notes into flashcards + quiz via
 - Library: all saved data goes through the Zod-validated `storage.ts` and the pure `libraryReducer.ts` (ids/timestamps are passed in). Save generated sets idempotently on the server-issued id. Keep card ids stable across edits (progress is keyed by id). Never store uploaded files. Use `accent-ink` (not `accent-strong`) for accent-coloured text. Test with `renderApp()` and an in-memory storage, never real `localStorage`.
 - Quiz scoring is app logic (`quizSession.ts`), never model-provided.
 - Tests must not call a live model. Use the fake provider / mock server / `page.route`.
+- Production is one process: `NODE_ENV=production` makes the server also serve `dist/` (`staticDir`); `/api/*` must stay JSON. Deploy config is `render.yaml`; `GEMINI_API_KEY` is set in the host dashboard, never committed.
 - Do not push to GitHub or deploy unless asked.
 - Windows: npm scripts run in cmd.exe — no `VAR=x cmd` or `rm -rf` in scripts.
