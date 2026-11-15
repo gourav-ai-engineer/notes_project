@@ -16,6 +16,7 @@ export default function App({ generate }: Props) {
   // Notes and mode live here, above the generator, so a failed request never loses them.
   const [notes, setNotes] = useState("");
   const [mode, setMode] = useState<StudyMode>("both");
+  const [files, setFiles] = useState<File[]>([]);
   const [editing, setEditing] = useState(false);
   const { state, run, cancel } = useStudyGenerator(generate);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -33,7 +34,7 @@ export default function App({ generate }: Props) {
 
   function submit() {
     setEditing(false);
-    void run({ notes: notes.trim(), mode });
+    void run({ notes: notes.trim(), mode, ...(files.length ? { files } : {}) });
   }
 
   const showStudy = state.status === "success" && !editing;
@@ -59,7 +60,7 @@ export default function App({ generate }: Props) {
               <div>
                 <h1 className="font-display text-3xl font-semibold leading-tight sm:text-4xl">What are you studying?</h1>
                 <p className="mt-2 max-w-prose text-ink-muted">
-                  Paste your notes or name a topic. We'll turn them into active-recall practice: flip cards to test your memory, then take a quiz.
+                  Paste your notes, name a topic, or attach PDFs, documents and photos of your notes. We'll turn them into active-recall practice: flip cards to test your memory, then take a quiz.
                 </p>
               </div>
             ) : null}
@@ -69,7 +70,16 @@ export default function App({ generate }: Props) {
             {state.status === "loading" ? (
               <LoadingState onCancel={() => backToInput(cancel)} />
             ) : (
-              <InputPanel notes={notes} mode={mode} onNotesChange={setNotes} onModeChange={setMode} onSubmit={submit} textareaRef={inputRef} />
+              <InputPanel
+                notes={notes}
+                mode={mode}
+                files={files}
+                onNotesChange={setNotes}
+                onModeChange={setMode}
+                onFilesChange={setFiles}
+                onSubmit={submit}
+                textareaRef={inputRef}
+              />
             )}
           </div>
         )}

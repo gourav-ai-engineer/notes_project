@@ -17,13 +17,14 @@ Study-assistant take-home: React app that turns notes into flashcards + quiz via
 
 ## Rules to keep
 
-- Never call the model from the browser; never put secrets in `VITE_*`; never log notes, raw model output or keys.
+- Never call the model from the browser; never put secrets in `VITE_*`; never log notes, uploaded file names/contents/extracted text, raw model output or keys.
 - Always validate model output at runtime (Zod); IDs are server-issued; at most ONE repair call.
 - The UI branches on stable error `code`, not message text.
 - Latest-request-wins: only the newest generation may update state (request id + AbortController). Keep the stale-response test's fake ignoring the abort signal.
 - Render model text as plain React text. Long tokens: use `.wrap-anywhere`; verify no horizontal overflow at 320 px.
 - No `maxLength` on the notes textarea (it would silently truncate pasted text).
 - Use `API_PORT`, not a generic `PORT` (collides with dev tooling).
+- Uploads: file type comes from the bytes (sniffing), never the client MIME type or name. Keep files in memory (no disk). Notes are optional only when a file is attached. Don't clip extracted text silently. Re-send attachments on the repair call. Multer limit errors must map to typed codes, not 500.
 - Quiz scoring is app logic (`quizSession.ts`), never model-provided.
 - Tests must not call a live model. Use the fake provider / mock server / `page.route`.
 - Do not push to GitHub or deploy unless asked.

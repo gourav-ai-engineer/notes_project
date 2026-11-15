@@ -39,8 +39,8 @@ export async function answer(page: Page, optionText: string, last = false) {
 }
 
 /** Only writes the committed README screenshots when asked (npm run test:e2e:screenshots), so normal runs leave the tree clean. */
-export async function shot(page: Page, info: TestInfo, name: string) {
+export async function shot(page: Page, info: TestInfo, name: string, fullPage = false) {
   if (!process.env.CAPTURE_SCREENSHOTS) return;
   mkdirSync("docs/screenshots", { recursive: true });
-  await page.screenshot({ path: `docs/screenshots/${info.project.name}-${name}.png` });
+  await page.screenshot({ path: `docs/screenshots/${info.project.name}-${name}.png`, fullPage });
 }

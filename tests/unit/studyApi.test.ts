@@ -22,6 +22,34 @@ describe("generateStudy (client API module)", () => {
     expect(result.title).toBe(set.title);
   });
 
+  it("sends JSON (no files field) when nothing is attached", async () => {
+    let init: RequestInit | undefined;
+    const fetchImpl = (async (_url: unknown, i?: RequestInit) => {
+      init = i;
+      return new Response(JSON.stringify({ studySet: makeStudySet() }), { status: 200 });
+    }) as typeof fetch;
+    await generateStudy({ ...request, files: [] }, { fetchImpl });
+    expect((init?.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+    expect(JSON.parse(init?.body as string)).toEqual(request);
+  });
+
+  it("sends multipart with every file and lets the browser set the boundary header", async () => {
+    let init: RequestInit | undefined;
+    const fetchImpl = (async (_url: unknown, i?: RequestInit) => {
+      init = i;
+      return new Response(JSON.stringify({ studySet: makeStudySet() }), { status: 200 });
+    }) as typeof fetch;
+    const files = [new File(["a"], "a.pdf", { type: "application/pdf" }), new File(["b"], "b.png", { type: "image/png" })];
+    await generateStudy({ notes: "", mode: "quiz", files }, { fetchImpl });
+
+    expect(init?.headers).toBeUndefined(); // an explicit Content-Type would drop the multipart boundary
+    const form = init?.body as FormData;
+    expect(form).toBeInstanceOf(FormData);
+    expect(form.get("mode")).toBe("quiz");
+    expect(form.get("notes")).toBe("");
+    expect(form.getAll("files").map((f) => (f as File).name)).toEqual(["a.pdf", "b.png"]);
+  });
+
   it("maps typed server errors to ApiClientError with the server's code and retryability", async () => {
     const err = await failure(
       reply(502, { error: { code: "AI_INVALID_OUTPUT", message: "Bad output", retryable: true, requestId: "r1" } }),

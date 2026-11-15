@@ -1,5 +1,5 @@
 /** Gemini adapter. The only file that imports the provider SDK. */
-import { ApiError, GoogleGenAI } from "@google/genai";
+import { ApiError, GoogleGenAI, createPartFromBase64 } from "@google/genai";
 import { ProviderError, type AiProvider, type ProviderRequest } from "./types.ts";
 
 export interface GeminiOptions {
@@ -14,11 +14,15 @@ export function createGeminiProvider(apiKey: string, model: string, options: Gem
   });
 
   return {
-    async generate({ systemInstruction, prompt, jsonSchema, signal }: ProviderRequest): Promise<string> {
+    async generate({ systemInstruction, prompt, jsonSchema, signal, attachments }: ProviderRequest): Promise<string> {
+      const hasFiles = Boolean(attachments?.length);
       try {
         const response = await client.models.generateContent({
           model,
-          contents: prompt,
+          // Files are sent inline (base64) alongside the text; nothing is uploaded to or stored by the Files API.
+          contents: hasFiles
+            ? [{ role: "user", parts: [{ text: prompt }, ...attachments!.map((a) => createPartFromBase64(a.data.toString("base64"), a.mimeType))] }]
+            : prompt,
           config: {
             systemInstruction,
             responseMimeType: "application/json",
@@ -33,6 +37,9 @@ export function createGeminiProvider(apiKey: string, model: string, options: Gem
         if (signal.aborted) throw err;
         if (err instanceof ApiError) {
           if (err.status === 429) throw new ProviderError("rate_limited", undefined, 429);
+          // With files attached, a plain 400 usually means a corrupt, encrypted or unsupported file,
+          // not a bad key. 401/403/404 still point at the key or model.
+          if (hasFiles && err.status === 400) throw new ProviderError("bad_input", "status 400", 400);
           // Other 4xx (bad key, retired model, rejected schema) will not fix themselves on retry.
           const isConfig = err.status >= 400 && err.status < 500 && err.status !== 408;
           throw new ProviderError(isConfig ? "config" : "unavailable", `status ${err.status}`, err.status);

@@ -152,3 +152,49 @@ test("long unbroken model text never causes horizontal overflow", async ({ page 
   await page.getByRole("button", { name: "Check answer" }).click();
   await expectNoHorizontalOverflow(page);
 });
+
+test("attach files, generate from them alone, and send them as multipart", async ({ page }, testInfo) => {
+  let contentType = "";
+  let postData = "";
+  await page.route("**/api/study/generate", (route) => {
+    contentType = route.request().headers()["content-type"] ?? "";
+    postData = route.request().postData() ?? "";
+    return route.fulfill({ status: 200, json: { studySet: makeStudySet() } });
+  });
+  await page.goto("/");
+
+  const longName = `${"lecture-".repeat(14)}notes.pdf`;
+  await page.getByLabel("Attach files").setInputFiles([
+    { name: longName, mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") },
+    { name: "whiteboard.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]) },
+  ]);
+  const list = page.getByRole("list", { name: "Attached files" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expectNoHorizontalOverflow(page);
+  await shot(page, testInfo, "6-attachments", true);
+
+  await page.getByRole("button", { name: "Remove whiteboard.png" }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+
+  // No notes typed: files alone are enough.
+  await page.getByRole("button", { name: "Generate study set" }).click();
+  await expect(page.getByRole("heading", { name: "Photosynthesis" })).toBeVisible();
+  expect(contentType).toContain("multipart/form-data");
+  expect(postData).toContain("%PDF-1.4 test");
+  expect(postData).not.toContain("whiteboard.png");
+});
+
+test("an unsupported file is refused in the browser before any request is made", async ({ page }) => {
+  let calls = 0;
+  await page.route("**/api/study/generate", (route) => {
+    calls += 1;
+    return route.fulfill({ status: 200, json: { studySet: makeStudySet() } });
+  });
+  await page.goto("/");
+  await page.getByLabel("Attach files").setInputFiles({ name: "setup.exe", mimeType: "application/x-msdownload", buffer: Buffer.from("MZ") });
+  await expect(page.getByText("isn't a supported file type")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Attached files" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Generate study set" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: /paste some notes/i })).toBeVisible();
+  expect(calls).toBe(0);
+});

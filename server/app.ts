@@ -3,6 +3,7 @@
  */
 import { randomUUID } from "node:crypto";
 import express, { type ErrorRequestHandler, type RequestHandler } from "express";
+import multer from "multer";
 import {
   ERROR_META,
   LIMITS,
@@ -11,6 +12,7 @@ import {
   type ApiErrorCode,
   type GenerateStudyResponse,
 } from "../shared/contract.ts";
+import { prepareSources } from "./services/files/attachments.ts";
 import { generateStudySet, type Logger } from "./services/ai/studyService.ts";
 import { AppError, type AiProvider } from "./services/ai/types.ts";
 
@@ -54,16 +56,31 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: App
     res.json({ ok: true });
   });
 
-  app.post("/api/study/generate", async (req, res) => {
-    const requestId = res.locals.requestId as string;
+  // Uploads stay in memory (never written to disk) and are bounded by count, per-file size and field size.
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { files: LIMITS.maxFiles, fileSize: LIMITS.maxFileBytes, fieldSize: 256 * 1024, fields: 4, parts: LIMITS.maxFiles + 4 },
+  });
+  // JSON requests (text only) skip multer entirely.
+  const parseUploads: RequestHandler = (req, res, next) =>
+    req.is("multipart/form-data") ? upload.array("files")(req, res, next) : next();
 
-    const parsed = generateRequestSchema.safeParse(req.body);
-    const notes = parsed.success ? parsed.data.notes.trim() : "";
-    if (!parsed.success || notes.length < LIMITS.notesMin || notes.length > LIMITS.notesMax) {
-      const { status, body } = errorBody("INVALID_REQUEST", requestId);
+  app.post("/api/study/generate", parseUploads, async (req, res) => {
+    const requestId = res.locals.requestId as string;
+    const reject = (code: ServerErrorCode) => {
+      const { status, body } = errorBody(code, requestId);
       res.status(status).json(body);
-      return;
-    }
+    };
+
+    const files = (Array.isArray(req.files) ? req.files : []) as Express.Multer.File[];
+    const isMultipart = Boolean(req.is("multipart/form-data"));
+    const raw = req.body as Record<string, unknown> | undefined;
+    // Multipart notes may be omitted when files carry the material; JSON requests still require them.
+    const parsed = generateRequestSchema.safeParse(isMultipart ? { notes: raw?.notes ?? "", mode: raw?.mode } : raw);
+    const notes = parsed.success ? parsed.data.notes.trim() : "";
+    const notesOk = files.length > 0 ? notes.length <= LIMITS.notesMax : notes.length >= LIMITS.notesMin && notes.length <= LIMITS.notesMax;
+    if (!parsed.success || !notesOk) return reject("INVALID_REQUEST");
+    if (files.reduce((sum, f) => sum + f.size, 0) > LIMITS.maxTotalBytes) return reject("FILE_TOO_LARGE");
 
     // Abort the provider call if the client disconnects (e.g. superseded request).
     const clientGone = new AbortController();
@@ -72,9 +89,14 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: App
     });
 
     try {
+      const sources = await prepareSources(files.map((f) => ({ originalname: f.originalname, buffer: f.buffer })));
+      // Counts only: never log file names, contents or extracted text.
+      if (files.length > 0) logger.info("generate with files", { requestId, files: files.length });
       const studySet = await generateStudySet({
         provider,
         notes,
+        attachments: sources.attachments,
+        extractedText: sources.extractedText,
         mode: parsed.data.mode,
         requestId,
         signal: clientGone.signal,
@@ -104,8 +126,20 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger }: App
   app.use(((err, _req, res, _next) => {
     const requestId = res.locals.requestId as string;
     const type = (err as { type?: string }).type;
-    const code: ServerErrorCode =
+    let code: ServerErrorCode =
       type === "entity.too.large" ? "PAYLOAD_TOO_LARGE" : type === "entity.parse.failed" ? "INVALID_REQUEST" : "INTERNAL_ERROR";
+    if (err instanceof multer.MulterError) {
+      code =
+        err.code === "LIMIT_FILE_SIZE"
+          ? "FILE_TOO_LARGE"
+          : err.code === "LIMIT_FILE_COUNT"
+            ? "TOO_MANY_FILES"
+            : err.code === "LIMIT_FIELD_VALUE"
+              ? "PAYLOAD_TOO_LARGE"
+              : "INVALID_REQUEST";
+    } else if (code === "INTERNAL_ERROR" && /multipart|boundary|unexpected end of form/i.test((err as Error).message ?? "")) {
+      code = "INVALID_REQUEST"; // malformed multipart body from the client
+    }
     if (code === "INTERNAL_ERROR") logger.error("unhandled error", { requestId });
     const { status, body } = errorBody(code, requestId);
     res.status(status).json(body);

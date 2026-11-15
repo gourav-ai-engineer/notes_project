@@ -15,6 +15,8 @@ import {
  * otherwise the server's typed AI_TIMEOUT would never reach the UI.
  */
 export const CLIENT_TIMEOUT_MS = 75_000;
+/** With attachments the server allows 60s per call (initial + one repair), plus upload time. */
+export const CLIENT_TIMEOUT_WITH_FILES_MS = 150_000;
 
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode;
@@ -36,10 +38,24 @@ export interface GenerateOptions {
   fetchImpl?: typeof fetch;
 }
 
-export type GenerateFn = (request: GenerateStudyRequest, options?: GenerateOptions) => Promise<StudySet>;
+/** What the UI submits: the validated request plus any uploaded files. */
+export interface GenerateInput extends GenerateStudyRequest {
+  files?: File[];
+}
+
+export type GenerateFn = (request: GenerateInput, options?: GenerateOptions) => Promise<StudySet>;
+
+function buildFormData({ notes, mode, files = [] }: GenerateInput): FormData {
+  const form = new FormData();
+  form.append("notes", notes);
+  form.append("mode", mode);
+  for (const file of files) form.append("files", file);
+  return form;
+}
 
 export const generateStudy: GenerateFn = async (request, options = {}) => {
-  const { signal, timeoutMs = CLIENT_TIMEOUT_MS, fetchImpl = fetch } = options;
+  const hasFiles = Boolean(request.files?.length);
+  const { signal, timeoutMs = hasFiles ? CLIENT_TIMEOUT_WITH_FILES_MS : CLIENT_TIMEOUT_MS, fetchImpl = fetch } = options;
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
   const combined = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 
@@ -47,8 +63,10 @@ export const generateStudy: GenerateFn = async (request, options = {}) => {
   try {
     response = await fetchImpl("/api/study/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
+      ...(hasFiles
+        ? // Multipart: do NOT set Content-Type; the browser adds the boundary.
+          { body: buildFormData(request) }
+        : { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: request.notes, mode: request.mode }) }),
       signal: combined,
     });
   } catch (err) {

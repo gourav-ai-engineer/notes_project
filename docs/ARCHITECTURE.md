@@ -27,6 +27,7 @@ useStudyGenerator ── POST /api/study/generate ──▶ route: validate requ
 | `server/app.ts` | `createApp({ provider })` factory (no `listen`), JSON body limit, request-ID header, JSON error middleware. |
 | `server/services/ai/studyService.ts` | Orchestration: timeout per call, bounded repair, error translation. Knows nothing about HTTP or a specific provider. |
 | `server/services/ai/geminiProvider.ts` | The only file importing the provider SDK. Swap providers by implementing `AiProvider`. |
+| `server/services/files/attachments.ts` | Upload handling: sniffs file type from bytes, converts DOCX/TXT/MD to text, passes PDFs/images/`.doc` through as inline attachments. No logging of names or content. |
 | `server/services/ai/prompts.ts` | System instruction, generation prompt, repair prompt. |
 | `server/validation/studySet.ts` | Pure functions: parse → validate → mode-filter → normalise. |
 | `src/lib/api/studyApi.ts` | The only HTTP code in the UI. Maps every failure to `ApiClientError { code, retryable }`. |
@@ -49,7 +50,9 @@ useStudyGenerator ── POST /api/study/generate ──▶ route: validate requ
 
 **Server boots without a key.** Missing `GEMINI_API_KEY` logs a warning and every generate call returns `503 AI_NOT_CONFIGURED` (non-retryable). `npm start` therefore always works on a fresh clone.
 
-**Privacy.** Logs contain only request ID and safe category — never notes, raw model output, or keys. The key is read from server env only (never `VITE_`-prefixed). Model text is rendered as ordinary React text (no `dangerouslySetInnerHTML`).
+**Privacy.** Logs contain only request ID, safe category and file counts — never notes, file names or contents, extracted text, raw model output, or keys. The key is read from server env only (never `VITE_`-prefixed). Model text is rendered as ordinary React text (no `dangerouslySetInnerHTML`).
+
+**File uploads.** Multipart is handled by route-scoped `multer` with memory storage and hard limits (5 files, 10 MB each, 12 MB total); JSON requests bypass it, so the text-only path is unchanged. Multer limit errors are mapped to typed codes (`FILE_TOO_LARGE`, `TOO_MANY_FILES`), not a retryable 500. We use Gemini's native multimodal input rather than an OCR library: it reads scanned pages, photos and handwriting directly, and removes a heavy dependency. Files go inline as base64 (not the Files API), so nothing is uploaded or retained beyond the request. With files attached, the per-call provider timeout doubles (60 s) and the client allows 150 s; a provider 400 is reported as `FILE_UNREADABLE` rather than as a key problem. The attachments are re-sent on the repair call.
 
 **Scoring is application code.** The model never returns a score; correctness is computed from `correctIndex` and the user's submitted answers.
 

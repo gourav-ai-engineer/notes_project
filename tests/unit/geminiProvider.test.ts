@@ -87,6 +87,42 @@ describe("createGeminiProvider (real SDK, mock server)", () => {
     expect(err).toMatchObject({ kind, httpStatus: status });
   });
 
+  it("sends attachments as inline base64 parts after the text, with the sniffed MIME type", async () => {
+    const { baseUrl, captured } = await startMock((_c, respond) => respond(200, geminiReply('{"ok":true}')));
+    const pdf = Buffer.from("%PDF-1.4 hello");
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    await createGeminiProvider("k", "m", { baseUrl }).generate({
+      ...request(),
+      attachments: [
+        { mimeType: "application/pdf", data: pdf },
+        { mimeType: "image/png", data: png },
+      ],
+    });
+    const parts = captured[0].body.contents[0].parts;
+    expect(parts[0]).toEqual({ text: "PROMPT" });
+    expect(parts[1]).toEqual({ inlineData: { mimeType: "application/pdf", data: pdf.toString("base64") } });
+    expect(parts[2]).toEqual({ inlineData: { mimeType: "image/png", data: png.toString("base64") } });
+    expect(captured[0].body.generationConfig.responseMimeType).toBe("application/json");
+  });
+
+  it("keeps the plain-text request shape when there are no attachments", async () => {
+    const { baseUrl, captured } = await startMock((_c, respond) => respond(200, geminiReply("{}")));
+    await createGeminiProvider("k", "m", { baseUrl }).generate({ ...request(), attachments: [] });
+    expect(captured[0].body.contents[0].parts).toEqual([{ text: "PROMPT" }]);
+  });
+
+  it("treats a 400 as a file problem only when files were sent; 401/403 stay config", async () => {
+    const files = [{ mimeType: "application/pdf", data: Buffer.from("%PDF-") }];
+    const a = await startMock((_c, respond) => respond(400, { error: { code: 400, message: "bad pdf", status: "INVALID_ARGUMENT" } }));
+    const withFiles = await createGeminiProvider("k", "m", { baseUrl: a.baseUrl }).generate({ ...request(), attachments: files }).catch((e) => e);
+    expect(withFiles).toMatchObject({ kind: "bad_input", httpStatus: 400 });
+    await new Promise<void>((r) => server!.close(() => r()));
+
+    const b = await startMock((_c, respond) => respond(403, { error: { code: 403, message: "key", status: "PERMISSION_DENIED" } }));
+    const forbidden = await createGeminiProvider("k", "m", { baseUrl: b.baseUrl }).generate({ ...request(), attachments: files }).catch((e) => e);
+    expect(forbidden).toMatchObject({ kind: "config", httpStatus: 403 });
+  });
+
   it("returns an empty string (not a crash) when Gemini returns no candidates", async () => {
     const { baseUrl } = await startMock((_c, respond) => respond(200, { candidates: [] }));
     expect(await createGeminiProvider("k", "m", { baseUrl }).generate(request())).toBe("");

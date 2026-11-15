@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { GenerateStudyRequest, StudySet } from "../../shared/contract";
-import { ApiClientError, generateStudy, isAbortError, type GenerateFn } from "../lib/api/studyApi";
+import type { StudySet } from "../../shared/contract";
+import { ApiClientError, generateStudy, isAbortError, type GenerateFn, type GenerateInput } from "../lib/api/studyApi";
 
 export type GeneratorState =
   | { status: "idle" }
@@ -48,7 +48,7 @@ export function useStudyGenerator(generate: GenerateFn = generateStudy) {
   }, []);
 
   const run = useCallback(
-    async (request: GenerateStudyRequest) => {
+    async (request: GenerateInput) => {
       const id = ++latestId.current;
       controller.current?.abort();
       const ctl = new AbortController();

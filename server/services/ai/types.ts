@@ -6,9 +6,17 @@ export interface AiProvider {
   generate(request: ProviderRequest): Promise<string>;
 }
 
+/** A file the provider reads directly (PDF, image, ...). `mimeType` comes from sniffing the bytes. */
+export interface ProviderAttachment {
+  mimeType: string;
+  data: Buffer;
+}
+
 export interface ProviderRequest {
   systemInstruction: string;
   prompt: string;
+  /** Files sent alongside the prompt. Absent for text-only requests. */
+  attachments?: ProviderAttachment[];
   /** JSON Schema describing the expected output, for provider-enforced structured output. */
   jsonSchema: Record<string, unknown>;
   signal: AbortSignal;
@@ -28,7 +36,7 @@ export class AppError extends Error {
 }
 
 /** Thrown by provider adapters, translated into an AppError by the service. */
-export type ProviderFailureKind = "rate_limited" | "unavailable" | "not_configured" | "config";
+export type ProviderFailureKind = "rate_limited" | "unavailable" | "not_configured" | "config" | "bad_input";
 export class ProviderError extends Error {
   readonly kind: ProviderFailureKind;
   readonly httpStatus?: number;

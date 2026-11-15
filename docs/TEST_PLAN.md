@@ -14,6 +14,9 @@ Automated tests never call a live model: they use a scripted fake provider, a lo
 | Quiz logic / scoring / wrong answers | Vitest | `tests/unit/quizSession.test.ts` |
 | Stale-response guard | Vitest + RTL | `tests/components/staleResponse.test.tsx` |
 | UI flows | Vitest + RTL | `tests/components/app.test.tsx` |
+| File uploads: sniffing, DOCX extraction, limits, multipart API, repair re-sends files, no-leak logs | Vitest + supertest | `tests/unit/uploads.test.ts` |
+| Gemini inline file parts and 400 mapping (real SDK ↔ mock server) | Vitest | `tests/unit/geminiProvider.test.ts` |
+| Upload UI: pick/remove/announce, validation, files-only submit, Retry keeps files | Vitest + RTL | `tests/components/uploads.test.tsx` |
 | Browser smoke, 1280 px and 320 px | Playwright (Edge) | `tests/e2e/study.spec.ts` |
 
 ## Requirement → evidence
@@ -39,6 +42,13 @@ Automated tests never call a live model: they use a scripted fake provider, a lo
 | Score from user answers; wrong list only has failed questions | `quizSession.test.ts`, `app.test.tsx`, `study.spec.ts` |
 | Perfect score → positive state, no broken retest | `app.test.tsx`, `study.spec.ts` |
 | Model text rendered as text (no HTML injection) | `app.test.tsx` "long unbroken model text" |
+| Files: type from bytes (lying extension ignored), DOCX text extracted, TXT/MD strict UTF-8, over-limit text rejected | `uploads.test.ts` (real in-memory DOCX built with jszip) |
+| Files: oversize / too many / unsupported / corrupt / empty return typed non-retryable errors (never 500) and never call the model | `uploads.test.ts` |
+| Files-only submissions accepted; notes still required (20+) without files | `uploads.test.ts`, `uploads.test.tsx` |
+| Attachments sent as inline base64 parts and re-sent on the repair call; provider 400 with files = `FILE_UNREADABLE`, 403 stays config | `geminiProvider.test.ts`, `uploads.test.ts` |
+| File names, contents and extracted text never appear in logs or responses | `uploads.test.ts` |
+| Multipart request has no manual Content-Type; JSON path unchanged | `studyApi.test.ts`, `study.spec.ts` |
+| Long file names don't overflow at 320 px | `study.spec.ts` (attach files) |
 | No horizontal overflow at 320 px (incl. long unbroken tokens) | `study.spec.ts` `expectNoHorizontalOverflow` on both projects |
 
 ## Manual checks performed (real browser)
@@ -47,7 +57,8 @@ Initial, validation error, over-limit (20,024 chars kept, Generate disabled), lo
 
 ## Not covered / known gaps
 
-- Live Gemini call (needs a key): manual smoke test in README.
+- Live Gemini call (needs a key): manual smoke test in README. This includes the real model reading a scanned PDF/photo and legacy `.doc` pass-through; these are verified only against a mock server.
+- No test for decompression bombs inside DOCX, encrypted PDFs, or PPTX/XLSX (unsupported).
 - No automated screen-reader pass; semantics are native (fieldset/legend, radios, button, tablist) and checked via accessible-name assertions only.
 - Cross-browser: Playwright runs on Edge/Chromium only.
 - One intermittent Vitest worker crash (Windows exit code `0xC0000409`) was seen once during development on `api.test.ts` and did not recur in repeated runs; cause not identified.

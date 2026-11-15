@@ -20,7 +20,41 @@ export const LIMITS = {
   option: 200,
   explanation: 600,
   topic: 80,
+  /** Attachments. Sent inline (base64 inflates ~33%), so keep the total well under typical ~20 MB request caps. */
+  maxFiles: 5,
+  maxFileBytes: 10 * 1024 * 1024,
+  maxTotalBytes: 12 * 1024 * 1024,
+  /** Text pulled out of a DOCX/TXT/MD file. Rejected (never silently clipped) above this. */
+  maxExtractedChars: 60_000,
 } as const;
+
+/** Lower-case extensions the file picker offers. The server still verifies content, not the name. */
+export const ACCEPTED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".docx", ".doc", ".txt", ".md"] as const;
+export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.join(",");
+
+const formatMB = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
+
+export interface FileLike {
+  name: string;
+  size: number;
+}
+
+/** Client-side pre-check using the same numbers as the server. Returns a user-facing message or null. */
+export function validateFiles(files: readonly FileLike[]): string | null {
+  if (files.length > LIMITS.maxFiles) return `Attach at most ${LIMITS.maxFiles} files at a time.`;
+  let total = 0;
+  for (const f of files) {
+    const dot = f.name.lastIndexOf(".");
+    const ext = dot >= 0 ? f.name.slice(dot).toLowerCase() : "";
+    if (!(ACCEPTED_EXTENSIONS as readonly string[]).includes(ext))
+      return `"${f.name}" isn't a supported file type. Use PDF, DOCX, an image (PNG, JPG, WEBP), or plain text.`;
+    if (f.size === 0) return `"${f.name}" is empty.`;
+    if (f.size > LIMITS.maxFileBytes) return `"${f.name}" is larger than ${formatMB(LIMITS.maxFileBytes)}.`;
+    total += f.size;
+  }
+  if (total > LIMITS.maxTotalBytes) return `Files total more than ${formatMB(LIMITS.maxTotalBytes)}. Remove one or use smaller files.`;
+  return null;
+}
 
 // ---------- Request ----------
 export const STUDY_MODES = ["flashcards", "quiz", "both"] as const;
@@ -38,6 +72,18 @@ export function validateNotes(raw: string): string | null {
   if (length === 0) return "Paste some notes or describe a topic to get started.";
   if (length < LIMITS.notesMin)
     return `Add a little more detail — at least ${LIMITS.notesMin} characters (you have ${length}).`;
+  if (length > LIMITS.notesMax)
+    return `Notes are too long. The limit is ${LIMITS.notesMax.toLocaleString()} characters (you have ${length.toLocaleString()}).`;
+  return null;
+}
+
+/**
+ * Notes are optional once at least one file is attached; if typed, they are extra context
+ * (so the 20-character minimum doesn't apply) but the upper limit still does.
+ */
+export function validateSubmission(raw: string, fileCount: number): string | null {
+  if (fileCount === 0) return validateNotes(raw);
+  const length = raw.trim().length;
   if (length > LIMITS.notesMax)
     return `Notes are too long. The limit is ${LIMITS.notesMax.toLocaleString()} characters (you have ${length.toLocaleString()}).`;
   return null;
@@ -121,6 +167,10 @@ export const API_ERROR_CODES = [
   "INVALID_REQUEST",
   "PAYLOAD_TOO_LARGE",
   "NOT_FOUND",
+  "UNSUPPORTED_FILE_TYPE",
+  "FILE_TOO_LARGE",
+  "TOO_MANY_FILES",
+  "FILE_UNREADABLE",
   "AI_NOT_CONFIGURED",
   "AI_CONFIG_ERROR",
   "AI_RATE_LIMITED",
@@ -157,6 +207,10 @@ export const ERROR_META: Record<
   INVALID_REQUEST: { status: 400, retryable: false, message: "That request wasn't valid. Check your notes and try again." },
   PAYLOAD_TOO_LARGE: { status: 413, retryable: false, message: "That request was too large to process." },
   NOT_FOUND: { status: 404, retryable: false, message: "That endpoint doesn't exist." },
+  UNSUPPORTED_FILE_TYPE: { status: 415, retryable: false, message: "One of the files isn't a supported type. Use PDF, DOCX, an image (PNG, JPG, WEBP), or plain text." },
+  FILE_TOO_LARGE: { status: 413, retryable: false, message: "A file is too large. Each file can be up to 10 MB, 12 MB in total." },
+  TOO_MANY_FILES: { status: 400, retryable: false, message: "Too many files. Attach up to 5 at a time." },
+  FILE_UNREADABLE: { status: 422, retryable: false, message: "A file couldn't be read. It may be corrupt, password-protected or empty. Try a different copy or paste the text instead." },
   AI_NOT_CONFIGURED: { status: 503, retryable: false, message: "The AI service isn't configured on the server yet. Add a GEMINI_API_KEY and restart." },
   AI_CONFIG_ERROR: { status: 502, retryable: false, message: "The AI service rejected the server's request. Check that GEMINI_API_KEY is valid and GEMINI_MODEL is a current model, then restart." },
   AI_RATE_LIMITED: { status: 429, retryable: true, message: "The AI service is busy right now. Wait a moment and try again." },
