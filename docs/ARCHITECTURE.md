@@ -36,6 +36,16 @@ useStudyGenerator ── POST /api/study/generate ──▶ route: validate requ
 | `src/features/study/StudyWorkspace.tsx` | Tabs, retest wiring. |
 | `src/components/**` | Presentational pieces (input, flashcards, quiz, states, ui). |
 
+## App shell, library and storage
+
+- **Routing:** `react-router` (`BrowserRouter` in `main.tsx`; tests use `MemoryRouter`). Routes: `/` Home, `/create`, `/create/ai/:source` (text, topic, files, images, scan), `/create/manual`, `/library`, `/folders/:id`, `/sets/:id`, `/sets/:id/edit`, `/settings`. One `<nav aria-label="Primary">` is a sidebar on wide screens and a fixed bottom bar on phones (the page pads for it). After each navigation the shell moves focus to the new page's `<h1>`.
+- **Library data (`src/features/library`):** `model.ts` (Zod schemas + pure helpers), `libraryReducer.ts` (pure; ids and timestamps are passed in, so it is deterministic), `storage.ts` (versioned key `recall-studio:library:v1`, Zod-validated on load), `LibraryProvider.tsx` (applies the reducer and writes through to `localStorage` on every change). Only generated or typed content is stored, never uploaded files.
+- **Idempotent save:** `set/add` ignores an id that already exists, and the Create page also guards with a ref, so React StrictMode's double effects cannot create duplicates. Leaving the page mid-generation aborts and invalidates the request (the same latest-request-wins hook), so a late response is never saved.
+- **Failure handling:** unreadable stored data is copied to a backup key and the app starts empty with a visible notice; a full or blocked store (`QuotaExceededError`, privacy mode) is reported while the session keeps working in memory; backup import is size-capped and Zod-validated, with explicit merge (colliding ids regenerated, folder references remapped) or replace (confirmed).
+- **Progress is keyed by card id.** The editor keeps ids for existing cards, so stars and "known" survive edits; rewording a "known" card demotes it to "learning". Streaks use the learner's local calendar day.
+- **Theme:** the same CSS tokens with a `data-theme="dark"` override set before first paint (inline script in `index.html`); a separate `--color-accent-ink` token is used for accent-coloured *text* because `--color-accent-strong` is a hover *fill*. Contrast was computed for the dark palette (all text pairs >= 6.6:1, white on accent 5.0:1, focus ring 3.8:1; borders raised to >= 3:1 in both themes).
+- **Destructive actions** use a native `<dialog>` (`Dialog`, `ConfirmDialog`) with Cancel as the default focus.
+
 ## Key decisions and trade-offs
 
 **Validation at the boundary, twice.** The server validates model output (untrusted); the client validates the server response (never trust the network). Both use the same Zod schemas from `shared/`. TypeScript types alone are not runtime checks.

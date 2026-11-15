@@ -12,7 +12,7 @@ Study-assistant take-home: React app that turns notes into flashcards + quiz via
 
 - `shared/contract.ts` — Zod schemas, limits, types, error-code table (imported by client AND server)
 - `server/` — `app.ts` factory (`createApp({ provider })`), `services/ai/` (service, Gemini adapter, prompts), `validation/studySet.ts`
-- `src/` — `lib/api/studyApi.ts`, `hooks/useStudyGenerator.ts`, `features/study/`, `components/`
+- `src/` — `lib/api/studyApi.ts`, `hooks/useStudyGenerator.ts`, `features/study/`, `features/library/` (model, reducer, storage, provider), `features/create/`, `pages/` (routes), `components/`
 - `tests/unit`, `tests/components`, `tests/e2e`, `tests/fixtures`
 
 ## Rules to keep
@@ -25,6 +25,7 @@ Study-assistant take-home: React app that turns notes into flashcards + quiz via
 - No `maxLength` on the notes textarea (it would silently truncate pasted text).
 - Use `API_PORT`, not a generic `PORT` (collides with dev tooling).
 - Uploads: file type comes from the bytes (sniffing), never the client MIME type or name. Keep files in memory (no disk). Notes are optional only when a file is attached. Don't clip extracted text silently. Re-send attachments on the repair call. Multer limit errors must map to typed codes, not 500.
+- Library: all saved data goes through the Zod-validated `storage.ts` and the pure `libraryReducer.ts` (ids/timestamps are passed in). Save generated sets idempotently on the server-issued id. Keep card ids stable across edits (progress is keyed by id). Never store uploaded files. Use `accent-ink` (not `accent-strong`) for accent-coloured text. Test with `renderApp()` and an in-memory storage, never real `localStorage`.
 - Quiz scoring is app logic (`quizSession.ts`), never model-provided.
 - Tests must not call a live model. Use the fake provider / mock server / `page.route`.
 - Do not push to GitHub or deploy unless asked.

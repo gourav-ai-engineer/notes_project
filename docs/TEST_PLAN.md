@@ -17,6 +17,9 @@ Automated tests never call a live model: they use a scripted fake provider, a lo
 | File uploads: sniffing, DOCX extraction, limits, multipart API, repair re-sends files, no-leak logs | Vitest + supertest | `tests/unit/uploads.test.ts` |
 | Gemini inline file parts and 400 mapping (real SDK ↔ mock server) | Vitest | `tests/unit/geminiProvider.test.ts` |
 | Upload UI: pick/remove/announce, validation, files-only submit, Retry keeps files | Vitest + RTL | `tests/components/uploads.test.tsx` |
+| Library model, reducer, storage, backup parsing, streaks, merge | Vitest | `tests/unit/library.test.ts`, `tests/unit/libraryHelpers.test.ts` |
+| App shell, create menu, library, folders, set page, editor, settings, persistence, storage failures | Vitest + RTL | `tests/components/library.test.tsx` |
+| Shell + library flows, persistence across reload, overflow on all 14 screens, theme, export/import | Playwright (Edge) | `tests/e2e/library.spec.ts` |
 | Browser smoke, 1280 px and 320 px | Playwright (Edge) | `tests/e2e/study.spec.ts` |
 
 ## Requirement → evidence
@@ -51,12 +54,27 @@ Automated tests never call a live model: they use a scripted fake provider, a lo
 | Long file names don't overflow at 320 px | `study.spec.ts` (attach files) |
 | No horizontal overflow at 320 px (incl. long unbroken tokens) | `study.spec.ts` `expectNoHorizontalOverflow` on both projects |
 
+## Library and shell: requirement to evidence
+
+| Requirement | Evidence |
+|---|---|
+| Generated set is saved once, into the chosen or a new folder; StrictMode does not duplicate it | `library.test.tsx` "saving generated sets" |
+| A response that arrives after leaving the page is never saved; failures save nothing | same |
+| Reducer is pure/idempotent; folder delete keeps or deletes sets as chosen | `library.test.ts`, `library.test.tsx` "Folders" |
+| Stars/known/shuffle/filters; a deck does not shrink under you while reviewing | `library.test.tsx` "Set page: studying" |
+| Editing keeps progress on untouched cards (ids), demotes reworded ones | `library.test.ts` (`draftToCards`), `library.test.tsx` "Editor" |
+| Corrupt storage is backed up, quota/blocked storage is reported, reload keeps data | `library.test.ts`, `library.test.tsx` "persistence and storage problems", `library.spec.ts` |
+| Invalid/oversized backups are rejected without changing data; replace needs confirmation | `library.test.ts`, `library.test.tsx` "Settings" |
+| Every screen fits at 320 px with very long folder/set names; bottom bar never covers the last control | `library.spec.ts` |
+
 ## Manual checks performed (real browser)
 
 Initial, validation error, over-limit (20,024 chars kept, Generate disabled), loading + cancel, real `AI_NOT_CONFIGURED` error through the full stack (browser → Vite proxy → Express), flashcard flip/navigate, quiz incorrect/correct feedback, results, retest, tab bar at 320 px. Five layout bugs were found this way and fixed (see git log).
 
 ## Not covered / known gaps
 
+- Real `localStorage` quota limits and multi-tab sync are only simulated (in-memory store, `storage` event handler untested).
+- No automated keyboard-only walkthrough of the dialogs; native `<dialog>` focus trapping is relied on (jsdom uses a minimal stand-in).
 - Live Gemini call (needs a key): manual smoke test in README. This includes the real model reading a scanned PDF/photo and legacy `.doc` pass-through; these are verified only against a mock server.
 - No test for decompression bombs inside DOCX, encrypted PDFs, or PPTX/XLSX (unsupported).
 - No automated screen-reader pass; semantics are native (fieldset/legend, radios, button, tablist) and checked via accessible-name assertions only.

@@ -14,9 +14,25 @@ This is a React app, not a chatbot: the model returns structured JSON, the serve
 
 **File attachments (320 px):** ![Attachments](docs/screenshots/mobile-320-6-attachments.png)
 
+| Create menu | Saved set | Library folders |
+|---|---|---|
+| ![Create](docs/screenshots/mobile-320-7-create-menu.png) | ![Saved](docs/screenshots/mobile-320-8-saved-set.png) | ![Library](docs/screenshots/desktop-9-library-folders.png) |
+
 *Screenshots are captured by the Playwright suite against the real UI with a mocked API response (no live model call). Regenerate with `npm run test:e2e:screenshots`.*
 
 ## Features
+
+**App structure (a study-app layout: sidebar on desktop, bottom tab bar on phones)**
+
+- **Home:** study streak, set and known-card counts, quick-create shortcuts, "Continue studying" and your folders.
+- **Create menu:** Scan document (camera on phones), Select images, Paste text, Select file, Describe a topic, and Create manually (no AI, works offline).
+- **Library:** all your sets with search, folder filter and sort; a Folders tab for one folder per subject (Biology, Spanish...) with colours. Sets can be moved, duplicated, renamed, edited and deleted (with confirmation). Deleting a folder either keeps its sets (moved to Unsorted) or deletes them too, your choice.
+- **Study tools:** star cards, mark "I know it" / "Still learning", shuffle, study only starred or not-yet-known cards, per-set progress %, best quiz score, daily streak.
+- **Card editor:** write or edit cards, and bulk-import pasted lines (`term - definition`, tab-separated, `::`). Editing keeps progress on untouched cards. "Make a quiz from these cards" adds an AI quiz to a cards-only set.
+- **Settings:** dark / light / follow-device theme, export and import a JSON backup (merge or replace), delete all data.
+- Everything you create is saved **in this browser only** (`localStorage`); there are no accounts or servers storing your sets.
+
+**Generation, studying and quality**
 
 - Free-form notes/topic input with live character count (min 20, max 20,000). Over-limit text is **never silently truncated** — it is flagged and Generate is disabled.
 - **File uploads as notes:** attach PDFs, scans or photos of handwritten notes (PNG/JPG/WEBP), Word documents (`.docx`, legacy `.doc`), and `.txt`/`.md` files, alone or together with typed notes. Up to 5 files, 10 MB each, 12 MB total. Gemini reads PDFs and images natively (including scanned pages and handwriting), so there is no separate OCR step.
@@ -28,7 +44,7 @@ This is a React app, not a chatbot: the model returns structured JSON, the serve
 
 ## Tech stack
 
-React 19 + TypeScript + Vite · Tailwind CSS v4 · Express 5 · Zod 4 (shared client/server contract) · Gemini via `@google/genai` (server-side only) · Vitest + React Testing Library + supertest · Playwright (Edge).
+React 19 + TypeScript + Vite · React Router 8 · Tailwind CSS v4 · Express 5 · Zod 4 (shared client/server contract) · Gemini via `@google/genai` (server-side only) · Vitest + React Testing Library + supertest · Playwright (Edge).
 
 Architecture, trade-offs and design tokens: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Tests: [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md).
 
@@ -100,11 +116,11 @@ Stable error codes the UI branches on: `INVALID_REQUEST`, `PAYLOAD_TOO_LARGE`, `
 
 ## Verification status (honest summary)
 
-Run on this machine at the end of development:
+Run on this machine at the end of development (last run: app shell, library and study tools included):
 
 - `npm run lint` — pass · `npm run typecheck` — pass · `npm run build` — pass
-- `npm test` — **154 tests passed** (9 files)
-- `npm run test:e2e` — **22 passed** (11 flows × desktop and 320 px)
+- `npm test` — **253 tests passed** (12 files)
+- `npm run test:e2e` — **34 passed** (17 flows × desktop and 320 px)
 - Manual real-browser QA at desktop and 320 px, including the full stack with no key (real `AI_NOT_CONFIGURED` error path).
 - **A live Gemini call has not been made** — no API key was available while building. The Gemini adapter is verified with the real SDK against a local mock server (request shape, schema-mode config, 429/5xx/empty/abort handling), but the real model's output quality and the current default model id are unverified until you run the smoke test below.
 
@@ -126,8 +142,10 @@ Tools the brief mentioned but that were **not** available in the build environme
 ## Known limitations and next steps
 
 - Live model output quality/default model id not yet verified with a real key (see above).
-- No persistence: refreshing the page loses the study set. Next: save `{notes, mode, studySet}` to `localStorage` with a clear "saved on this device" control.
-- No regenerate-from-same-notes, shuffle, dark mode, streaming, accounts or deployment (P1/P2, intentionally skipped).
+- **Your library lives only in this browser's `localStorage`:** no sync between devices, and clearing site data deletes it. Export a backup from Settings. Uploaded files are not stored, only the generated cards and quiz. A full or blocked store is detected and reported, and unreadable saved data is backed up (`recall-studio:library:corrupt-backup`) rather than discarded.
+- Folders are one level deep (no sub-folders), and there is no drag-and-drop between folders: use Move on a set.
+- Deliberately not built, because they need infrastructure beyond this scope: classes/sharing and accounts (need a backend and auth), podcast mode (needs text-to-speech), games, spaced-repetition scheduling, and deployment.
+- No regenerate-from-same-notes or streaming.
 - **The file path has not been tested with a live key.** Inline file parts, the file-rejection mapping (a Gemini 400 with files attached becomes `FILE_UNREADABLE`), and legacy `.doc` pass-through are verified only against a local mock server. `.doc` support relies on Gemini's documentation and is the least certain format; if it fails, save the file as `.docx` or PDF. Encrypted PDFs, `.pptx`/`.xlsx`, and very large scans are not supported or not specially handled.
 - DOCX text extraction has no zip-bomb guard beyond the 10 MB upload cap; fine locally, add one before exposing the API publicly.
 - Very long notes are sent as-is (up to 20,000 chars); no chunking/summarising for huge documents.
@@ -142,8 +160,9 @@ Tools the brief mentioned but that were **not** available in the build environme
 ## Screen-recording checklist (≈2–3 min)
 
 1. Show `npm install`, `.env` (key blurred/hidden), then `npm start` and the browser at <http://localhost:5173>.
-2. Click the "Photosynthesis" chip, keep **Both**, Generate. Mention the loading state and Cancel.
-3. Flashcards: flip (click, then Space), Next/Previous, note "Card X of Y".
+2. Tour the shell: Home → **Create** menu (point at the six options). Choose **Paste text**, click the "Photosynthesis" chip, pick "+ New folder…" and name it Biology, keep **Both**, Generate. Mention the loading state and Cancel. The set saves to the library automatically.
+2b. Show **Library** → Folders → Biology, then reload the page to show everything persisted. Briefly show **Select file** with a PDF and **Settings** (theme, backup).
+3. Flashcards: flip (click, then Space), Next/Previous, note "Card X of Y"; star a card, mark "I know it", try Shuffle and the Starred filter.
 4. Quiz: choose a wrong answer → Check → show feedback + explanation; answer the rest with a mix of right/wrong → results.
 5. **Retest wrong answers** → only the missed questions appear. Then show a perfect run's "no wrong answers" state (optional).
 6. Resize the window / use device mode to ~320 px — no sideways scrolling.

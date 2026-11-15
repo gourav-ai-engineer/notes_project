@@ -3,8 +3,8 @@ import { makeStudySet } from "../fixtures/study";
 import { answer, expectNoHorizontalOverflow, generate, mockError, mockGenerate, shot } from "./helpers";
 
 test("initial view loads with the input form", async ({ page }, info) => {
-  await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "What are you studying?" })).toBeVisible();
+  await page.goto("/create/ai/text");
+  await expect(page.getByRole("heading", { level: 1, name: "Paste text" })).toBeVisible();
   await expect(page.getByLabel("Your notes or topic")).toBeVisible();
   await expect(page.getByRole("radio", { name: /^Both/ })).toBeChecked();
   await expectNoHorizontalOverflow(page);
@@ -13,7 +13,7 @@ test("initial view loads with the input form", async ({ page }, info) => {
 
 test("generate, flip and navigate flashcards", async ({ page }, info) => {
   await mockGenerate(page);
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await generate(page);
 
   await expect(page.getByRole("heading", { name: "Photosynthesis" })).toBeVisible();
@@ -34,7 +34,7 @@ test("generate, flip and navigate flashcards", async ({ page }, info) => {
 
 test("keyboard: Space flips the focused card and arrows navigate", async ({ page }) => {
   await mockGenerate(page);
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await generate(page);
   const card = page.getByTestId("flashcard");
   await card.focus();
@@ -46,7 +46,7 @@ test("keyboard: Space flips the focused card and arrows navigate", async ({ page
 
 test("quiz with mixed answers, then retest shows only the wrong ones", async ({ page }, info) => {
   await mockGenerate(page);
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await generate(page);
   await page.getByRole("tab", { name: "Quiz" }).click();
 
@@ -75,7 +75,7 @@ test("quiz with mixed answers, then retest shows only the wrong ones", async ({ 
 
 test("perfect score shows the no-wrong-answers state", async ({ page }) => {
   await mockGenerate(page);
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await generate(page);
   await page.getByRole("tab", { name: "Quiz" }).click();
   await answer(page, "Chloroplast");
@@ -97,7 +97,7 @@ test("a failed request keeps the notes, shows a retry, and recovers", async ({ p
         })
       : route.fulfill({ status: 200, json: { studySet: makeStudySet() } });
   });
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await page.getByRole("radio", { name: /^Quiz/ }).check({ force: true });
   await generate(page);
 
@@ -114,7 +114,7 @@ test("a failed request keeps the notes, shows a retry, and recovers", async ({ p
 
 test("non-retryable error offers editing but no retry", async ({ page }) => {
   await mockError(page, "AI_NOT_CONFIGURED", 503, false);
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await generate(page);
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(0);
@@ -126,7 +126,7 @@ test("loading state appears while waiting and can be cancelled", async ({ page }
     await new Promise((r) => setTimeout(r, 1500));
     await route.fulfill({ status: 200, json: { studySet: makeStudySet() } }).catch(() => {});
   });
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await generate(page);
   await expect(page.getByRole("status")).toContainText("Writing your study set");
   await page.getByRole("button", { name: "Cancel" }).click();
@@ -141,7 +141,7 @@ test("long unbroken model text never causes horizontal overflow", async ({ page 
   set.quiz[0].options = ["O".repeat(150), "P".repeat(150), "R".repeat(150), "S".repeat(150)];
   set.quiz[0].explanation = "E".repeat(500);
   await mockGenerate(page, set);
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await generate(page);
 
   await expectNoHorizontalOverflow(page);
@@ -161,7 +161,7 @@ test("attach files, generate from them alone, and send them as multipart", async
     postData = route.request().postData() ?? "";
     return route.fulfill({ status: 200, json: { studySet: makeStudySet() } });
   });
-  await page.goto("/");
+  await page.goto("/create/ai/text");
 
   const longName = `${"lecture-".repeat(14)}notes.pdf`;
   await page.getByLabel("Attach files").setInputFiles([
@@ -190,7 +190,7 @@ test("an unsupported file is refused in the browser before any request is made",
     calls += 1;
     return route.fulfill({ status: 200, json: { studySet: makeStudySet() } });
   });
-  await page.goto("/");
+  await page.goto("/create/ai/text");
   await page.getByLabel("Attach files").setInputFiles({ name: "setup.exe", mimeType: "application/x-msdownload", buffer: Buffer.from("MZ") });
   await expect(page.getByText("isn't a supported file type")).toBeVisible();
   await expect(page.getByRole("list", { name: "Attached files" })).toHaveCount(0);

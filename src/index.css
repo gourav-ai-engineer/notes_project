@@ -7,10 +7,12 @@
   --color-ink: #1c2430;
   --color-ink-muted: #556070;
   --color-line: #ddd5c6;
-  --color-line-strong: #b9ae99;
+  --color-line-strong: #8f836d;
   --color-accent: #0b6e5f;
   --color-accent-strong: #08574b;
   --color-accent-soft: #dff1ec;
+  /* Accent-coloured TEXT on a soft background. Separate from --color-accent-strong (a hover fill). */
+  --color-accent-ink: #08574b;
   --color-warm: #a8480a;
   --color-warm-soft: #fbeadb;
   --color-good: #14683a;
@@ -18,11 +20,44 @@
   --color-bad: #a11d2c;
   --color-bad-soft: #fbe7e9;
 
+  /* Folder (subject) colours. Decorative only; names are always shown as text. */
+  --color-folder-blue: #4a5df5;
+  --color-folder-violet: #8b5cf6;
+  --color-folder-teal: #0f9d8a;
+  --color-folder-green: #3aa55d;
+  --color-folder-amber: #d98a0b;
+  --color-folder-rose: #e0446a;
+
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   --radius-card: 1rem;
   --shadow-card: 0 1px 0 rgb(28 36 48 / 0.04), 0 8px 24px -12px rgb(28 36 48 / 0.18);
+}
+
+/* Dark theme: same tokens, new values. `data-theme` is set on <html> before first paint (see index.html). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: #0b0d24;
+  --color-surface: #161a3a;
+  --color-ink: #eef0ff;
+  --color-ink-muted: #a9aed0;
+  --color-line: #292e57;
+  --color-line-strong: #6b73b0;
+  --color-accent: #4a5df5;
+  --color-accent-strong: #3a4bdc;
+  --color-accent-soft: #1f2557;
+  --color-accent-ink: #b9c1ff;
+  --color-warm: #ffb27a;
+  --color-warm-soft: #3a2616;
+  --color-good: #6fdc9a;
+  --color-good-soft: #12301f;
+  --color-bad: #ff8d9a;
+  --color-bad-soft: #3b1620;
+  --shadow-card: 0 1px 0 rgb(0 0 0 / 0.3), 0 10px 28px -14px rgb(0 0 0 / 0.7);
+}
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 @layer base {

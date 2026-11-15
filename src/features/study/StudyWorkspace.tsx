@@ -1,18 +1,20 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { PartyPopper, Target } from "lucide-react";
-import type { QuizQuestion, StudySet } from "../../../shared/contract";
+import type { QuizQuestion } from "../../../shared/contract";
 import { FlashcardDeck } from "../../components/flashcards/FlashcardDeck";
 import { QuizRunner } from "../../components/quiz/QuizRunner";
 import { EmptyState } from "../../components/states/EmptyState";
 import { Tabs, type TabDef } from "../../components/ui/Tabs";
 import { tabPanelProps } from "../../components/ui/tabIds";
 import { secondaryButton } from "../../components/ui/buttons";
+import { useLibrary } from "../library/LibraryContext";
+import type { LibrarySet } from "../library/model";
 
 type TabId = "flashcards" | "quiz" | "retest";
 
 interface Props {
-  studySet: StudySet;
-  onNewNotes: () => void;
+  /** Read from the library on every render, so stars and progress update live. */
+  set: LibrarySet;
 }
 
 /** Retest is derived from the finished quiz: `null` means the quiz hasn't been completed yet. */
@@ -21,14 +23,11 @@ interface RetestState {
   runId: number;
 }
 
-export function StudyWorkspace({ studySet, onNewNotes }: Props) {
+export function StudyWorkspace({ set }: Props) {
   const prefix = useId();
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  // A new study set replaces the loading view, which had focus. Move focus to the title so keyboard
-  // and screen-reader users land on the new content instead of <body>.
-  useEffect(() => headingRef.current?.focus(), []);
-  const hasCards = studySet.flashcards.length > 0;
-  const hasQuiz = studySet.quiz.length > 0;
+  const lib = useLibrary();
+  const hasCards = set.flashcards.length > 0;
+  const hasQuiz = set.quiz.length > 0;
 
   const [tab, setTab] = useState<TabId>(hasCards ? "flashcards" : "quiz");
   const [retest, setRetest] = useState<RetestState | null>(null);
@@ -57,37 +56,31 @@ export function StudyWorkspace({ studySet, onNewNotes }: Props) {
   }
 
   return (
-    <div className="rise-in space-y-6">
-      <header className="space-y-3">
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
-          <h2 ref={headingRef} tabIndex={-1} className="wrap-anywhere min-w-0 font-display outline-none text-3xl font-semibold leading-tight sm:text-4xl">{studySet.title}</h2>
-          <button type="button" onClick={onNewNotes} className={secondaryButton}>
-            Edit notes
-          </button>
-        </div>
-        <p className="wrap-anywhere max-w-prose text-ink-muted">{studySet.summary}</p>
-        <p className="text-sm font-medium text-ink-muted">
-          {hasCards && `${studySet.flashcards.length} flashcards`}
-          {hasCards && hasQuiz && " · "}
-          {hasQuiz && `${studySet.quiz.length} quiz questions`}
-        </p>
-      </header>
-
+    <div className="space-y-6">
       {tabs.length > 1 && <Tabs tabs={tabs} active={tab} onChange={setTab} label="Study modes" idPrefix={prefix} />}
 
       {/* Panels stay mounted (just hidden) so quiz progress survives switching tabs. */}
       {hasCards && (
         <div {...panelProps("flashcards")} hidden={tab !== "flashcards"}>
-          <FlashcardDeck cards={studySet.flashcards} />
+          <FlashcardDeck
+            cards={set.flashcards}
+            onToggleStar={(cardId) => lib.toggleStar(set.id, cardId)}
+            onSetStatus={(cardId, status) => lib.setCardStatus(set.id, cardId, status)}
+            onStudied={() => lib.recordStudy(set.id)}
+          />
         </div>
       )}
 
       {hasQuiz && (
         <div {...panelProps("quiz")} hidden={tab !== "quiz"}>
           <QuizRunner
-            questions={studySet.quiz}
+            questions={set.quiz}
             kind="quiz"
-            onFinish={startRetest}
+            onChecked={() => lib.recordStudy(set.id)}
+            onFinish={(wrong, score) => {
+              startRetest(wrong);
+              lib.recordQuiz(set.id, score.correct, score.total);
+            }}
             onRestart={() => setRetest(null)}
             onRetestWrong={(wrong) => {
               startRetest(wrong);
@@ -116,12 +109,7 @@ export function StudyWorkspace({ studySet, onNewNotes }: Props) {
               You got every question right, so there's nothing to retest. Restart the quiz any time to practise again.
             </EmptyState>
           ) : (
-            <QuizRunner
-              key={retest.runId}
-              questions={retest.questions}
-              kind="retest"
-              onRetestWrong={startRetest}
-            />
+            <QuizRunner key={retest.runId} questions={retest.questions} kind="retest" onRetestWrong={startRetest} />
           )}
         </div>
       )}

@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Recall Studio — notes to flashcards and quizzes</title>
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      // Set the theme before first paint so there is no light flash. Keep in sync with src/lib/theme.ts.
+      try {
+        var t = localStorage.getItem("recall-studio:theme") || "dark";
+        if (t === "system") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t === "light" ? "light" : "dark";
+      } catch (e) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    </script>
     <meta name="description" content="Turn your study notes into interactive flashcards and quizzes." />
   </head>
   <body>

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LIMITS, type StudySet } from "../../shared/contract";
-import App from "../../src/App";
+import { renderApp } from "./renderApp";
 import { ApiClientError, type GenerateFn } from "../../src/lib/api/studyApi";
 import { SAMPLE_NOTES, makeStudySet } from "../fixtures/study";
 
@@ -21,7 +21,7 @@ const ok = (set: StudySet = makeStudySet()): GenerateFn => vi.fn(async () => set
 
 async function generateWith(generate: GenerateFn, notes = SAMPLE_NOTES) {
   const user = userEvent.setup();
-  render(<App generate={generate} />);
+  renderApp({ generate: generate });
   await user.click(screen.getByLabelText(/your notes or topic/i));
   await user.paste(notes);
   await user.click(screen.getByRole("button", { name: /generate study set/i }));
@@ -30,7 +30,7 @@ async function generateWith(generate: GenerateFn, notes = SAMPLE_NOTES) {
 
 describe("input form", () => {
   it("shows the initial empty state with a labelled textarea and mode choices", () => {
-    render(<App generate={ok()} />);
+    renderApp({ generate: ok() });
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
     expect(screen.getByLabelText(/your notes or topic/i)).toHaveValue("");
     expect(screen.getByRole("radio", { name: /^Both/ })).toBeChecked();
@@ -40,7 +40,7 @@ describe("input form", () => {
   it("rejects empty and too-short input without calling the API", async () => {
     const generate = ok();
     const user = userEvent.setup();
-    render(<App generate={generate} />);
+    renderApp({ generate: generate });
 
     await user.click(screen.getByRole("button", { name: /generate study set/i }));
     expect(screen.getByRole("alert")).toHaveTextContent(/paste some notes/i);
@@ -53,7 +53,7 @@ describe("input form", () => {
 
   it("does not truncate over-limit text; flags it and disables Generate", async () => {
     const user = userEvent.setup();
-    render(<App generate={ok()} />);
+    renderApp({ generate: ok() });
     const box = screen.getByLabelText(/your notes or topic/i);
     const long = "a".repeat(LIMITS.notesMax + 25);
     await user.click(box);
@@ -67,7 +67,7 @@ describe("input form", () => {
 
   it("example chips fill the textarea", async () => {
     const user = userEvent.setup();
-    render(<App generate={ok()} />);
+    renderApp({ generate: ok() });
     await user.click(screen.getByRole("button", { name: "TCP vs UDP" }));
     expect((screen.getByLabelText(/your notes or topic/i) as HTMLTextAreaElement).value).toContain("TCP vs UDP");
   });
@@ -75,7 +75,7 @@ describe("input form", () => {
   it("sends trimmed notes and the selected mode", async () => {
     const generate = ok();
     const user = userEvent.setup();
-    render(<App generate={generate} />);
+    renderApp({ generate: generate });
     await user.click(screen.getByRole("radio", { name: /^Quiz/ }));
     await user.click(screen.getByLabelText(/your notes or topic/i));
     await user.paste(`   ${SAMPLE_NOTES}   `);
@@ -102,7 +102,7 @@ describe("loading, errors and retry", () => {
       .mockRejectedValueOnce(new ApiClientError("AI_INVALID_OUTPUT", "The study set could not be generated reliably.", true, "req-9"))
       .mockResolvedValueOnce(makeStudySet());
     const user = userEvent.setup();
-    render(<App generate={generate} />);
+    renderApp({ generate: generate });
     await user.click(screen.getByRole("radio", { name: /^Flashcards/ }));
     await user.click(screen.getByLabelText(/your notes or topic/i));
     await user.paste(SAMPLE_NOTES);
@@ -165,12 +165,6 @@ describe("focus management", () => {
     await user.click(screen.getByRole("button", { name: /generate study set/i }));
     d.resolve(makeStudySet());
     expect(await screen.findByRole("heading", { name: "Photosynthesis" })).toHaveFocus();
-  });
-
-  it("returns focus to the notes field after Edit notes", async () => {
-    const user = await generateWith(ok());
-    await user.click(await screen.findByRole("button", { name: "Edit notes" }));
-    expect(screen.getByLabelText(/your notes or topic/i)).toHaveFocus();
   });
 });
 

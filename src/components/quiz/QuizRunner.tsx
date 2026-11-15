@@ -6,6 +6,7 @@ import {
   getWrongQuestions,
   initQuizSession,
   quizReducer,
+  type Score,
 } from "../../features/study/quizSession";
 import { ProgressBar } from "../ui/ProgressBar";
 import { primaryButton } from "../ui/buttons";
@@ -17,7 +18,9 @@ interface Props {
   questions: QuizQuestion[];
   kind: "quiz" | "retest";
   /** Called once when the last question is checked and the user moves on. */
-  onFinish?: (wrong: QuizQuestion[]) => void;
+  onFinish?: (wrong: QuizQuestion[], score: Score) => void;
+  /** Called each time an answer is checked (counts as studying). */
+  onChecked?: () => void;
   onRestart?: () => void;
   onRetestWrong: (wrong: QuizQuestion[]) => void;
 }
@@ -26,7 +29,7 @@ interface Props {
  * One question at a time. Selecting never advances; the user must Check, which
  * locks the answer and reveals correctness plus the explanation.
  */
-export function QuizRunner({ questions, kind, onFinish, onRestart, onRetestWrong }: Props) {
+export function QuizRunner({ questions, kind, onFinish, onChecked, onRestart, onRetestWrong }: Props) {
   const [state, dispatch] = useReducer(quizReducer, questions, initQuizSession);
   const legendRef = useRef<HTMLLegendElement>(null);
   const firstRender = useRef(true);
@@ -155,7 +158,7 @@ export function QuizRunner({ questions, kind, onFinish, onRestart, onRetestWrong
             type="button"
             className={primaryButton}
             onClick={() => {
-              if (isLast) onFinish?.(wrong);
+              if (isLast) onFinish?.(wrong, score);
               dispatch({ type: "next" });
             }}
           >
@@ -163,7 +166,10 @@ export function QuizRunner({ questions, kind, onFinish, onRestart, onRetestWrong
             <ArrowRight aria-hidden="true" size={18} />
           </button>
         ) : (
-          <button type="button" className={primaryButton} disabled={state.selected === null} onClick={() => dispatch({ type: "check" })}>
+          <button type="button" className={primaryButton} disabled={state.selected === null} onClick={() => {
+            dispatch({ type: "check" });
+            onChecked?.();
+          }}>
             Check answer
           </button>
         )}

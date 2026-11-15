@@ -1,7 +1,8 @@
-import { useId, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent, type Ref } from "react";
+import { useId, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent, type ReactNode, type Ref } from "react";
 import { FileText, Paperclip, Sparkles, X } from "lucide-react";
-import { ACCEPT_ATTRIBUTE, LIMITS, validateFiles, validateSubmission, type StudyMode } from "../../../shared/contract";
+import { LIMITS, validateFiles, validateSubmission, type StudyMode } from "../../../shared/contract";
 import { primaryButton } from "../ui/buttons";
+import { SOURCE_CONFIG, type GenerateSource } from "../../features/create/sources";
 import { ModePicker } from "./ModePicker";
 
 function formatSize(bytes: number): string {
@@ -28,9 +29,14 @@ interface Props {
   onFilesChange: (files: File[]) => void;
   onSubmit: () => void;
   textareaRef?: Ref<HTMLTextAreaElement>;
+  /** Which "Create" option brought the user here. Changes emphasis, labels and the file filter. */
+  source?: GenerateSource;
+  /** Extra form controls (e.g. the folder picker), shown just above the Generate button. */
+  extra?: ReactNode;
 }
 
-export function InputPanel({ notes, mode, files, onNotesChange, onModeChange, onFilesChange, onSubmit, textareaRef }: Props) {
+export function InputPanel({ notes, mode, files, onNotesChange, onModeChange, onFilesChange, onSubmit, textareaRef, source = "text", extra }: Props) {
+  const cfg = SOURCE_CONFIG[source];
   const ids = useId();
   const [showError, setShowError] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -75,7 +81,11 @@ export function InputPanel({ notes, mode, files, onNotesChange, onModeChange, on
 
   const length = notes.trim().length;
   const hasFiles = files.length > 0;
-  const problem = validateSubmission(notes, files.length);
+  // On file-first screens, "nothing yet" means "attach something", not "paste notes".
+  const problem =
+    cfg.filesFirst && !hasFiles && length === 0
+      ? `Attach at least one ${source === "images" || source === "scan" ? "image" : "file"} to get started.`
+      : validateSubmission(notes, files.length);
   const overBy = length - LIMITS.notesMax;
   const isOver = overBy > 0;
   const errorText = showError || isOver ? problem : null;
@@ -92,118 +102,139 @@ export function InputPanel({ notes, mode, files, onNotesChange, onModeChange, on
 
   const describedBy = [`${ids}-help`, `${ids}-count`, errorText ? `${ids}-error` : null].filter(Boolean).join(" ");
 
+  const notesBlock = (
+    <div>
+      <label htmlFor={`${ids}-notes`} className="mb-1.5 block text-base font-semibold">
+        {cfg.notesLabel}
+      </label>
+      <p id={`${ids}-help`} className="mb-2 text-sm text-ink-muted">
+        {hasFiles && !cfg.filesFirst
+          ? "Optional: add a focus or extra context for your attached files, for example which chapter matters most."
+          : cfg.notesHelp}
+      </p>
+      {/* No maxLength on purpose: silently truncating pasted notes would lose text. */}
+      <textarea
+        ref={textareaRef}
+        id={`${ids}-notes`}
+        value={notes}
+        onChange={(e) => onNotesChange(e.target.value)}
+        rows={cfg.filesFirst ? 4 : 9}
+        spellCheck
+        aria-describedby={describedBy}
+        aria-invalid={errorText ? true : undefined}
+        className={`block w-full resize-y rounded-xl border bg-surface px-4 py-3 text-base leading-relaxed shadow-inner placeholder:text-ink-muted/70 ${
+          errorText ? "border-bad" : "border-line-strong"
+        }`}
+        placeholder="e.g. The mitochondria is the site of cellular respiration. It produces ATP through..."
+      />
+      <div className="mt-1.5 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+        <p id={`${ids}-error`} role={errorText ? "alert" : undefined} className="min-h-5 text-sm font-medium text-bad">
+          {errorText}
+        </p>
+        <p id={`${ids}-count`} className={`ml-auto text-sm tabular-nums ${isOver ? "font-semibold text-bad" : "text-ink-muted"}`}>
+          {length.toLocaleString()} / {LIMITS.notesMax.toLocaleString()}
+          {isOver ? ` (${overBy.toLocaleString()} over)` : !hasFiles && length < LIMITS.notesMin ? ` · min ${LIMITS.notesMin}` : ""}
+        </p>
+      </div>
+    </div>
+  );
+
+  const filesBlock = cfg.showFiles && (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
+      className={`rounded-xl border border-dashed p-4 transition-colors motion-reduce:transition-none ${
+        dragging ? "border-accent bg-accent-soft" : "border-line-strong bg-surface/60"
+      }`}
+    >
+      <p id={`${ids}-files-help`} className="text-sm text-ink-muted">
+        {cfg.filesHelp} Up to {LIMITS.maxFiles} files, 10 MB each.
+      </p>
+      <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-line-strong bg-surface px-4 text-sm font-semibold hover:bg-accent-soft focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
+        <Paperclip aria-hidden="true" size={18} />
+        {cfg.attachLabel}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={cfg.accept}
+          {...(cfg.capture ? { capture: cfg.capture } : {})}
+          onChange={handleFileInput}
+          aria-describedby={`${ids}-files-help`}
+          className="sr-only"
+        />
+      </label>
+
+      {hasFiles && (
+        <ul className="mt-3 space-y-2" aria-label="Attached files">
+          {files.map((file, i) => (
+            <li key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2">
+              <FileText aria-hidden="true" size={18} className="shrink-0 text-ink-muted" />
+              <span className="wrap-anywhere min-w-0 flex-1 text-sm">
+                {file.name} <span className="text-ink-muted">({formatSize(file.size)})</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                aria-label={`Remove ${file.name}`}
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-accent-soft"
+              >
+                <X aria-hidden="true" size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p role={fileError ? "alert" : undefined} className="mt-2 min-h-5 text-sm font-medium text-bad">
+        {fileError}
+      </p>
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
+    </div>
+  );
+
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5" aria-label="Create a study set">
-      <div>
-        <label htmlFor={`${ids}-notes`} className="mb-1.5 block text-base font-semibold">
-          Your notes or topic
-        </label>
-        <p id={`${ids}-help`} className="mb-2 text-sm text-ink-muted">
-          {hasFiles
-            ? "Optional: add a focus or extra context for your attached files, for example which chapter matters most."
-            : "Paste lecture notes, a textbook excerpt, or just describe a topic. No formatting needed."}
-        </p>
-        {/* No maxLength on purpose: silently truncating pasted notes would lose text. */}
-        <textarea
-          ref={textareaRef}
-          id={`${ids}-notes`}
-          value={notes}
-          onChange={(e) => onNotesChange(e.target.value)}
-          rows={9}
-          spellCheck
-          aria-describedby={describedBy}
-          aria-invalid={errorText ? true : undefined}
-          className={`block w-full resize-y rounded-xl border bg-surface px-4 py-3 text-base leading-relaxed shadow-inner placeholder:text-ink-muted/70 ${
-            errorText ? "border-bad" : "border-line-strong"
-          }`}
-          placeholder="e.g. The mitochondria is the site of cellular respiration. It produces ATP through..."
-        />
-        <div className="mt-1.5 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-          <p id={`${ids}-error`} role={errorText ? "alert" : undefined} className="min-h-5 text-sm font-medium text-bad">
-            {errorText}
-          </p>
-          <p id={`${ids}-count`} className={`ml-auto text-sm tabular-nums ${isOver ? "font-semibold text-bad" : "text-ink-muted"}`}>
-            {length.toLocaleString()} / {LIMITS.notesMax.toLocaleString()}
-            {isOver ? ` (${overBy.toLocaleString()} over)` : !hasFiles && length < LIMITS.notesMin ? ` · min ${LIMITS.notesMin}` : ""}
-          </p>
+      {cfg.filesFirst ? (
+        <>
+          {filesBlock}
+          {notesBlock}
+        </>
+      ) : (
+        <>
+          {notesBlock}
+          {filesBlock}
+        </>
+      )}
+
+      {cfg.showExamples && (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Example topics">
+          <span className="text-sm text-ink-muted">Try a topic:</span>
+          {EXAMPLES.map((ex) => (
+            <button
+              key={ex.label}
+              type="button"
+              onClick={() => {
+                onNotesChange(ex.text);
+                setShowError(false);
+              }}
+              className="min-h-9 rounded-full border border-line-strong bg-surface px-3.5 text-sm text-ink transition-colors hover:bg-accent-soft motion-reduce:transition-none"
+            >
+              {ex.label}
+            </button>
+          ))}
         </div>
-      </div>
-
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        className={`rounded-xl border border-dashed p-4 transition-colors motion-reduce:transition-none ${
-          dragging ? "border-accent bg-accent-soft" : "border-line-strong bg-surface/60"
-        }`}
-      >
-        <p id={`${ids}-files-help`} className="text-sm text-ink-muted">
-          Or attach files: PDFs, Word documents, photos or scans of notes, and text files. Drop them here or browse. Up to {LIMITS.maxFiles} files, 10 MB each.
-        </p>
-        <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-line-strong bg-surface px-4 text-sm font-semibold hover:bg-accent-soft focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
-          <Paperclip aria-hidden="true" size={18} />
-          Attach files
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept={ACCEPT_ATTRIBUTE}
-            onChange={handleFileInput}
-            aria-describedby={`${ids}-files-help`}
-            className="sr-only"
-          />
-        </label>
-
-        {hasFiles && (
-          <ul className="mt-3 space-y-2" aria-label="Attached files">
-            {files.map((file, i) => (
-              <li key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2">
-                <FileText aria-hidden="true" size={18} className="shrink-0 text-ink-muted" />
-                <span className="wrap-anywhere min-w-0 flex-1 text-sm">
-                  {file.name} <span className="text-ink-muted">({formatSize(file.size)})</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeFile(i)}
-                  aria-label={`Remove ${file.name}`}
-                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-accent-soft"
-                >
-                  <X aria-hidden="true" size={16} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <p role={fileError ? "alert" : undefined} className="mt-2 min-h-5 text-sm font-medium text-bad">
-          {fileError}
-        </p>
-        <p role="status" className="sr-only">
-          {announcement}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Example topics">
-        <span className="text-sm text-ink-muted">Try a topic:</span>
-        {EXAMPLES.map((ex) => (
-          <button
-            key={ex.label}
-            type="button"
-            onClick={() => {
-              onNotesChange(ex.text);
-              setShowError(false);
-            }}
-            className="min-h-9 rounded-full border border-line-strong bg-surface px-3.5 text-sm text-ink transition-colors hover:bg-accent-soft motion-reduce:transition-none"
-          >
-            {ex.label}
-          </button>
-        ))}
-      </div>
+      )}
 
       <ModePicker value={mode} onChange={onModeChange} />
+
+      {extra}
 
       <button type="submit" disabled={isOver} className={`${primaryButton} w-full sm:w-auto`}>
         <Sparkles aria-hidden="true" size={18} />

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LIMITS } from "../../shared/contract";
-import App from "../../src/App";
+import { renderApp } from "./renderApp";
 import { ApiClientError, type GenerateFn } from "../../src/lib/api/studyApi";
 import { makeStudySet } from "../fixtures/study";
 
@@ -12,7 +12,7 @@ const pdf = (name = "lecture.pdf", size = 2048) => new File([new Uint8Array(size
 // applyAccept:false so we can also test files the picker's `accept` filter would normally hide (drag-and-drop).
 function setup(generate: GenerateFn = vi.fn(async () => makeStudySet())) {
   const user = userEvent.setup({ applyAccept: false });
-  render(<App generate={generate} />);
+  renderApp({ generate: generate });
   return { user, generate, input: () => screen.getByLabelText(/attach files/i) as HTMLInputElement };
 }
 
