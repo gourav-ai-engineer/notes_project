@@ -37,6 +37,9 @@ const featureGraphic = `<!doctype html><html><body style="margin:0;width:1024px;
 </body></html>`;
 
 mkdirSync("public/icons", { recursive: true });
+// The in-app logo and the browser tab icon: the same artwork as the app icon, as a scalable SVG.
+writeFileSync("public/favicon.svg", `${svg(mark(1.25), 96)}\n`);
+console.log("wrote public/favicon.svg");
 mkdirSync("store-assets", { recursive: true });
 
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "msedge" });
