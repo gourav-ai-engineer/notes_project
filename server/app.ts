@@ -2,6 +2,7 @@
  * Express app factory. Separate from `listen()` so tests can inject a fake provider.
  */
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import express, { type ErrorRequestHandler, type RequestHandler } from "express";
 import multer from "multer";
 import {
@@ -154,13 +155,17 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger, stati
         index: false,
         setHeaders(res, filePath) {
           const hashed = /[\\/]assets[\\/]/.test(filePath);
-          res.setHeader("Cache-Control", hashed ? "public, max-age=31536000, immutable" : "public, max-age=3600");
+          // The service worker file must never be served stale, or an app update could not reach installed users.
+          const mustRevalidate = /[\\/]sw\.js$/.test(filePath);
+          res.setHeader("Cache-Control", mustRevalidate ? "no-cache" : hashed ? "public, max-age=31536000, immutable" : "public, max-age=3600");
           res.setHeader("X-Content-Type-Options", "nosniff");
         },
       }),
     );
-    // Client-side routes (/library, /sets/abc...) all get the app shell. Anything under /api stays JSON.
-    app.get(/^\/(?!api(?:\/|$)).*/, (_req, res, next) => {
+    // Digital Asset Links for the Android app live in a dot-folder, which static serving skips by default.
+    app.use("/.well-known", express.static(join(staticDir, ".well-known"), { dotfiles: "allow", index: false, maxAge: 0 }));
+    // Client-side routes (/library, /sets/abc...) all get the app shell. /api and /.well-known are never rewritten.
+    app.get(/^\/(?!api(?:\/|$)|\.well-known(?:\/|$)).*/, (_req, res, next) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader("X-Frame-Options", "DENY");

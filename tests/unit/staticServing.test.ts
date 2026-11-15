@@ -20,6 +20,10 @@ beforeAll(() => {
   writeFileSync(join(dir, "index.html"), "<!doctype html><title>Recall Studio</title><div id=root></div>");
   writeFileSync(join(dir, "assets", "app-abc123.js"), "console.log(1)");
   writeFileSync(join(dir, "favicon.svg"), "<svg xmlns='http://www.w3.org/2000/svg'/>");
+  writeFileSync(join(dir, "sw.js"), "self.addEventListener('fetch',()=>{})");
+  writeFileSync(join(dir, "manifest.webmanifest"), JSON.stringify({ name: "Recall Studio" }));
+  mkdirSync(join(dir, ".well-known"));
+  writeFileSync(join(dir, ".well-known", "assetlinks.json"), "[]");
 });
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -49,6 +53,26 @@ describe("serving the built client", () => {
     expect(asset.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
     const icon = await request(served()).get("/favicon.svg");
     expect(icon.headers["cache-control"]).toBe("public, max-age=3600");
+  });
+
+  it("never lets the service worker go stale, and serves the web app manifest", async () => {
+    const sw = await request(served()).get("/sw.js");
+    expect(sw.status).toBe(200);
+    expect(sw.headers["cache-control"]).toBe("no-cache");
+    expect(sw.headers["content-type"]).toMatch(/javascript/);
+    const manifest = await request(served()).get("/manifest.webmanifest");
+    expect(manifest.status).toBe(200);
+    expect(manifest.headers["content-type"]).toMatch(/manifest\+json|json/);
+  });
+
+  it("serves Digital Asset Links as JSON, and a missing .well-known file is a JSON 404, not the app", async () => {
+    const links = await request(served()).get("/.well-known/assetlinks.json");
+    expect(links.status).toBe(200);
+    expect(links.headers["content-type"]).toMatch(/json/);
+    expect(links.body).toEqual([]);
+    const missing = await request(served()).get("/.well-known/nope.json");
+    expect(missing.status).toBe(404);
+    expect(missing.headers["content-type"]).toMatch(/json/);
   });
 
   it("keeps /api responses as JSON, never the app shell", async () => {

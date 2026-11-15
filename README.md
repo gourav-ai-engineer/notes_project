@@ -163,6 +163,10 @@ One Node web service serves the built app and the API together, so there is no C
 
 Notes: the free plan sleeps after idle time, so the first request can take about a minute. Library data stays in each visitor's own browser. To try the production setup locally: `npm run build`, then `npm run serve` and open <http://localhost:8787>.
 
+## Installable app and Google Play
+
+The site is an installable PWA (manifest, icons, offline app shell via `public/sw.js`). Open it on a phone and use **Add to Home Screen**, or wrap it as an Android app with PWABuilder and publish to Google Play. The full step-by-step guide, including what only you can do (developer account, signing key, privacy policy, store listing), is in [docs/PLAY_STORE.md](docs/PLAY_STORE.md). Store graphics are in `store-assets/` (regenerate with `node scripts/make-icons.mjs`).
+
 ## Time spent
 
 **Actual time spent: _[fill in your own figure before submitting]_** — I have deliberately not estimated this for you.
