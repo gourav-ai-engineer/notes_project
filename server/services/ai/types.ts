@@ -27,9 +27,12 @@ export class AppError extends Error {
   readonly code: ApiErrorCode;
   /** Upstream HTTP status, kept for server logs only (never sent to the client). */
   readonly providerStatus?: number;
-  constructor(code: ApiErrorCode, detail?: string, providerStatus?: number) {
+  /** Safe failure label for server logs only, e.g. "TypeError/ENOTFOUND". Never message text, notes or keys. */
+  readonly reason?: string;
+  constructor(code: ApiErrorCode, detail?: string, providerStatus?: number, reason?: string) {
     super(detail ?? code);
     this.providerStatus = providerStatus;
+    this.reason = reason;
     this.name = "AppError";
     this.code = code;
   }
@@ -40,9 +43,12 @@ export type ProviderFailureKind = "rate_limited" | "unavailable" | "not_configur
 export class ProviderError extends Error {
   readonly kind: ProviderFailureKind;
   readonly httpStatus?: number;
-  constructor(kind: ProviderFailureKind, detail?: string, httpStatus?: number) {
+  /** See AppError.reason. */
+  readonly reason?: string;
+  constructor(kind: ProviderFailureKind, detail?: string, httpStatus?: number, reason?: string) {
     super(detail ?? kind);
     this.httpStatus = httpStatus;
+    this.reason = reason;
     this.name = "ProviderError";
     this.kind = kind;
   }

@@ -52,13 +52,13 @@ async function callProvider(opts: GenerateOptions, prompt: string): Promise<stri
     if (opts.signal?.aborted) throw new AppError("INTERNAL_ERROR", "client_disconnected");
     if (err instanceof AppError) throw err;
     if (err instanceof ProviderError) {
-      if (err.kind === "rate_limited") throw new AppError("AI_RATE_LIMITED", undefined, err.httpStatus);
+      if (err.kind === "rate_limited") throw new AppError("AI_RATE_LIMITED", undefined, err.httpStatus, err.reason);
       if (err.kind === "not_configured") throw new AppError("AI_NOT_CONFIGURED");
-      if (err.kind === "config") throw new AppError("AI_CONFIG_ERROR", undefined, err.httpStatus);
-      if (err.kind === "bad_input") throw new AppError("FILE_UNREADABLE", undefined, err.httpStatus);
-      throw new AppError("AI_PROVIDER_ERROR", undefined, err.httpStatus);
+      if (err.kind === "config") throw new AppError("AI_CONFIG_ERROR", undefined, err.httpStatus, err.reason);
+      if (err.kind === "bad_input") throw new AppError("FILE_UNREADABLE", undefined, err.httpStatus, err.reason);
+      throw new AppError("AI_PROVIDER_ERROR", undefined, err.httpStatus, err.reason);
     }
-    throw new AppError("AI_PROVIDER_ERROR");
+    throw new AppError("AI_PROVIDER_ERROR", undefined, undefined, "UnexpectedProviderError");
   }
 }
 

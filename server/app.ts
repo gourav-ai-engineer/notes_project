@@ -142,7 +142,8 @@ export function createApp({ provider, aiTimeoutMs, logger = consoleLogger, stati
       const code: ServerErrorCode = err instanceof AppError && err.code in ERROR_META ? (err.code as ServerErrorCode) : "INTERNAL_ERROR";
       // Log the safe category only — no notes, no raw model output, no stack in the response.
       const providerStatus = err instanceof AppError ? err.providerStatus : undefined;
-      logger.error("generate failed", { requestId, code, ...(providerStatus ? { providerStatus } : {}) });
+      const reason = err instanceof AppError ? err.reason : undefined;
+      logger.error("generate failed", { requestId, code, ...(providerStatus ? { providerStatus } : {}), ...(reason ? { reason } : {}) });
       const { status, body } = errorBody(code, requestId);
       res.status(status).json(body);
     }
