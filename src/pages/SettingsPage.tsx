@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { useOutletContext } from "react-router";
 import { Download, Trash2, Upload } from "lucide-react";
 import type { ShellContext } from "../components/layout/AppShell";
+import { InstallSection } from "../components/layout/InstallApp";
 import { PageTitle } from "../components/layout/PageTitle";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { primaryButton, secondaryButton } from "../components/ui/buttons";
@@ -77,6 +78,8 @@ export function SettingsPage() {
           </div>
         </fieldset>
       </section>
+
+      <InstallSection headingId={`${ids}-install`} />
 
       <section aria-labelledby={`${ids}-data`} className="space-y-4">
         <h2 id={`${ids}-data`} className="font-display text-2xl font-semibold">

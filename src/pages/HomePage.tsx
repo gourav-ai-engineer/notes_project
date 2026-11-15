@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { BookOpen, Flame, Folder as FolderIcon, GraduationCap, Plus } from "lucide-react";
 import { FOLDER_ICON } from "../components/library/folderStyles";
 import { SetCard } from "../components/library/SetCard";
+import { InstallBanner } from "../components/layout/InstallApp";
 import { PageTitle } from "../components/layout/PageTitle";
 import { EmptyState } from "../components/states/EmptyState";
 import { primaryButton } from "../components/ui/buttons";
@@ -37,6 +38,8 @@ export function HomePage() {
   return (
     <div className="space-y-8">
       <PageTitle subtitle="Turn your notes into flashcards and quizzes, then keep what you learn.">Home</PageTitle>
+
+      <InstallBanner />
 
       <section aria-label="Your progress" className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat icon={<Flame size={28} />} value={plural(streak, "day")} label={streak > 0 ? "Study streak" : "Streak starts today"} />
