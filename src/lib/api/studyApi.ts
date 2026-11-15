@@ -11,12 +11,12 @@ import {
 } from "../../../shared/contract";
 
 /**
- * Must exceed the server's worst case (initial call + one repair, 30s each),
+ * Must exceed the server's worst case (initial call + one repair, 45s each, retries included),
  * otherwise the server's typed AI_TIMEOUT would never reach the UI.
  */
-export const CLIENT_TIMEOUT_MS = 75_000;
-/** With attachments the server allows 60s per call (initial + one repair), plus upload time. */
-export const CLIENT_TIMEOUT_WITH_FILES_MS = 150_000;
+export const CLIENT_TIMEOUT_MS = 100_000;
+/** With attachments the server allows 90s per call (initial + one repair), plus upload time. */
+export const CLIENT_TIMEOUT_WITH_FILES_MS = 200_000;
 
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode;

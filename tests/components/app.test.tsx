@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LIMITS, type StudySet } from "../../shared/contract";
@@ -157,14 +157,16 @@ describe("focus management", () => {
   it("moves focus to the loading panel, then the new title, and back to the notes after Cancel", async () => {
     const d = deferred<StudySet>();
     const user = await generateWith(vi.fn(() => d.promise));
-    expect(screen.getByRole("status")).toHaveFocus();
+    // Focus is moved in an effect, so wait for it to land instead of asserting on the same tick (that raced under load).
+    await waitFor(() => expect(screen.getByRole("status")).toHaveFocus());
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByLabelText(/your notes or topic/i)).toHaveFocus();
+    await waitFor(() => expect(screen.getByLabelText(/your notes or topic/i)).toHaveFocus());
 
     await user.click(screen.getByRole("button", { name: /generate study set/i }));
     d.resolve(makeStudySet());
-    expect(await screen.findByRole("heading", { name: "Photosynthesis" })).toHaveFocus();
+    const title = await screen.findByRole("heading", { name: "Photosynthesis" });
+    await waitFor(() => expect(title).toHaveFocus());
   });
 });
 

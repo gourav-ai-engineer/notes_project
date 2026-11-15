@@ -28,5 +28,5 @@ const app = createApp({
 });
 
 app.listen(config.port, () => {
-  console.log(`[info] listening on port ${config.port}${staticDir ? " (serving the built app)" : " (API only)"} (model: ${config.geminiModel})`);
+  console.log(`[info] listening on port ${config.port}${staticDir ? " (serving the built app)" : " (API only)"} (model: ${config.geminiModel}, fallback: ${config.geminiFallbackModel ?? "none"})`);
 });

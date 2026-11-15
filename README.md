@@ -67,8 +67,9 @@ cp .env.example .env
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `GEMINI_API_KEY` | **Yes** for real generation | — | Server-side only. Never `VITE_`-prefixed, never sent to the browser. |
-| `GEMINI_MODEL` | No | `gemini-3.5-flash-lite` | Model id. Change it if Google retires/renames models. |
-| `AI_TIMEOUT_MS` | No | `30000` | Timeout per provider call (initial + at most one repair). |
+| `GEMINI_MODEL` | No | `gemini-3.5-flash` | Main model id. Leave unset unless Google retires/renames it. Check what your key can use: `curl -H "x-goog-api-key: KEY" https://generativelanguage.googleapis.com/v1beta/models`. A model that is listed there can still answer 404 for your key, so test it. |
+| `GEMINI_FALLBACK_MODEL` | No | `gemini-3.5-flash-lite` | Second model, tried only when the main one keeps failing from overload (503/5xx), a network failure or an exhausted quota (429). Never used for a bad key or request. `none` turns it off. |
+| `AI_TIMEOUT_MS` | No | `45000` | Time limit for one model call, retries included (initial + at most one repair, so a request can take up to twice this; double again with files). The browser waits longer than that, so the server's own error always arrives first. |
 | `API_PORT` | No | `8787` | API port (Vite proxies `/api` to it). |
 
 Run:
@@ -129,7 +130,7 @@ Run on this machine at the end of development (last run: app shell, library and 
 1. Put your key in `.env`, run `npm start`, open <http://localhost:5173>.
 2. Click the "Photosynthesis" chip → **Both** → Generate.
 3. Expect 3–10 flashcards and quiz questions within ~5–20 s.
-4. If it fails, the server console logs the error code and upstream HTTP status (never the key or your notes). `AI_CONFIG_ERROR` (a 4xx from Gemini) means the key or model id was rejected, or Gemini refused the request schema — check `GEMINI_API_KEY` and try another `GEMINI_MODEL` (model ids change; see <https://ai.google.dev/gemini-api/docs/models>). `AI_PROVIDER_ERROR` is a 5xx/network problem and is worth retrying.
+4. If it fails, the server console logs the error code and upstream HTTP status (never the key or your notes). `AI_CONFIG_ERROR` (a 4xx from Gemini) means the key or model id was rejected, or Gemini refused the request schema — check `GEMINI_API_KEY` and try another `GEMINI_MODEL` (model ids change; see <https://ai.google.dev/gemini-api/docs/models>). `AI_PROVIDER_ERROR` is a 5xx/network problem. The server already retries it twice (0.7 s, then 1.5 s) and then tries `GEMINI_FALLBACK_MODEL`; each retry or switch is logged as a `[warn] gemini retry …` / `switching to fallback` line with the model and a safe reason such as `ApiError/UNAVAILABLE`. If users still see it, Gemini was down for both models, so wait a minute and retry.
 
 ## AI-use note
 

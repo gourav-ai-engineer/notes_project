@@ -18,7 +18,7 @@ Study-assistant take-home: React app that turns notes into flashcards + quiz via
 ## Rules to keep
 
 - Never call the model from the browser; never put secrets in `VITE_*`; never log notes, uploaded file names/contents/extracted text, raw model output or keys.
-- Always validate model output at runtime (Zod); IDs are server-issued; at most ONE repair call.
+- Always validate model output at runtime (Zod); IDs are server-issued; at most ONE repair call. Transport retries (overload/5xx/network, then the fallback model) live only in `geminiProvider.ts`, are bounded by the same overall timeout, and must never retry or reroute a 4xx (bad key/model must stay visible). Retry logs carry labels only.
 - The UI branches on stable error `code`, not message text.
 - Latest-request-wins: only the newest generation may update state (request id + AbortController). Keep the stale-response test's fake ignoring the abort signal.
 - Render model text as plain React text. Long tokens: use `.wrap-anywhere`; verify no horizontal overflow at 320 px.

@@ -69,7 +69,7 @@ describe("createGeminiProvider (real SDK, mock server)", () => {
     await new Promise<void>((r) => server!.close(() => r()));
 
     const second = await startMock((_c, respond) => respond(500, { error: { code: 500, message: "boom", status: "INTERNAL" } }));
-    const err = await createGeminiProvider("k", "m", { baseUrl: second.baseUrl }).generate(request()).catch((e) => e);
+    const err = await createGeminiProvider("k", "m", { baseUrl: second.baseUrl, retryDelaysMs: [] }).generate(request()).catch((e) => e);
     expect(err).toBeInstanceOf(ProviderError);
     expect(err.kind).toBe("unavailable");
   });
@@ -82,7 +82,7 @@ describe("createGeminiProvider (real SDK, mock server)", () => {
     [503, "unavailable"],
   ])("classifies HTTP %i as %s and keeps the status", async (status, kind) => {
     const { baseUrl } = await startMock((_c, respond) => respond(status, { error: { code: status, message: "x", status: "X" } }));
-    const err = await createGeminiProvider("k", "m", { baseUrl }).generate(request()).catch((e) => e);
+    const err = await createGeminiProvider("k", "m", { baseUrl, retryDelaysMs: [] }).generate(request()).catch((e) => e);
     expect(err).toBeInstanceOf(ProviderError);
     expect(err).toMatchObject({ kind, httpStatus: status });
   });
